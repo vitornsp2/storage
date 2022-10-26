@@ -14,3 +14,9 @@ Storage
 
 ### ❗ First of all:
 * You need to have docker installed in your computer.
+
+### Start ▶️
+To start the applciation, you need just to run the command `docker-compose up`. When you see this message `your server stated on [::]:8002` so your app is running correctly!
+
+### Tests
+* With the command `make test` you can run all tests in this project.
