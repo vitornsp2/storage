@@ -510,3 +510,5 @@ About
 trappykeepy/.gitignore at main · unblinking/trappykeepy
 
 .vscode
+
+.DS_Store
