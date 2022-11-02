@@ -1,11 +1,14 @@
 using AutoMapper;
-using findox.Domain.Interfaces.DAL;
+using findox.Domain.Interfaces.Repository;
 using findox.Domain.Interfaces.Service;
 using findox.Domain.Models.Database;
 using findox.Domain.Models.Dto;
 using findox.Domain.Models.Service;
+using findox.Domain.Validator;
 using findox.Service.Services;
 using findox.Test.TestObjects;
+using FluentValidation;
+using FluentValidation.Results;
 using Moq;
 
 namespace findox.Test.Service
@@ -17,6 +20,8 @@ namespace findox.Test.Service
         private Mock<IUnitOfWork> _uow;
         private Mock<ITokenService> _token;
         private Mock<IMapper> _mapper;
+        private Mock<IValidator<UserSessionDto>> _sessionValidator;
+        private Mock<IValidator<UserDto>> _validator;
 
         public UserServiceTests()
         {
@@ -25,6 +30,8 @@ namespace findox.Test.Service
             _uow = new Mock<IUnitOfWork>();
             _token = new Mock<ITokenService>();
             _mapper = new Mock<IMapper>();
+            _validator = new Mock<IValidator<UserDto>>();
+            _sessionValidator = new Mock<IValidator<UserSessionDto>>();
         }
 
         private void RefreshMocks()
@@ -32,6 +39,8 @@ namespace findox.Test.Service
             _uow = new Mock<IUnitOfWork>();
             _token = new Mock<ITokenService>();
             _mapper = new Mock<IMapper>();
+            _validator = new Mock<IValidator<UserDto>>();
+            _sessionValidator = new Mock<IValidator<UserSessionDto>>();
         }
 
         [Fact]
@@ -41,21 +50,25 @@ namespace findox.Test.Service
             var userDomain = _domain.TestRegularUser;
             var userDto = _dto.TestUserRegularDto;
             _mapper.Setup(m => m.Map<User>(It.IsAny<UserDto>())).Returns(userDomain);
-            _uow.Setup(u => u.Begin()).Verifiable();
-            _uow.Setup(u => u.users.CountByColumnValue(It.IsAny<string>(), It.IsAny<string>())).ReturnsAsync(0);
-            _uow.Setup(u => u.users.Create(userDomain)).ReturnsAsync(userDomain);
-            _uow.Setup(u => u.Commit()).Verifiable();
-            _mapper.Setup(m => m.Map<UserDto>(It.IsAny<User>())).Returns((UserDto)userDto);
-            var userService = new UserService(_uow.Object, _token.Object, _mapper.Object);
 
-            var serviceResponse = await userService.Create(new UserServiceRequest(userDto));
+            _uow.Setup(u => u.UsersRepository.CountByColumnValue(It.IsAny<string>(), It.IsAny<string>())).ReturnsAsync(0);
+            _uow.Setup(u => u.UsersRepository.Create(userDomain)).ReturnsAsync(userDomain);
+
+            _mapper.Setup(m => m.Map<UserDto>(It.IsAny<User>())).Returns((UserDto)userDto);
+
+            var validationResult = new ValidationResult();
+            _validator.Setup(m => m.Validate(userDto)).Returns(validationResult);
+
+            var userService = new UserService(_uow.Object, _token.Object, _mapper.Object,_validator.Object, _sessionValidator.Object);
+
+            var serviceResponse = await userService.Create(userDto);
 
             Assert.NotNull(serviceResponse);
-            Assert.IsType<UserServiceResponse>(serviceResponse);
-            Assert.Null(serviceResponse.ErrorMessage);
-            Assert.Equal(OutcomeType.Success, serviceResponse.Outcome);
-            Assert.NotNull(serviceResponse.Item);
-            Assert.Equal(userDto, serviceResponse.Item);
+            Assert.IsType<ApiReponse>(serviceResponse);
+            Assert.Equal(serviceResponse.hasErros, false);
+            Assert.Equal("Success", serviceResponse.Status);
+            Assert.NotNull(serviceResponse.Data);
+            Assert.Equal(userDto, serviceResponse.Data);
         }
 
         [Fact]
@@ -65,20 +78,25 @@ namespace findox.Test.Service
             var userDomain = _domain.TestRegularUser;
             var userDto = _dto.TestUserIncompleteDto;
             _mapper.Setup(m => m.Map<User>(It.IsAny<UserDto>())).Returns(userDomain);
-            _uow.Setup(u => u.Begin()).Verifiable();
-            _uow.Setup(u => u.users.CountByColumnValue(It.IsAny<string>(), It.IsAny<string>())).ReturnsAsync(0);
-            _uow.Setup(u => u.users.Create(userDomain)).ReturnsAsync(userDomain);
-            _uow.Setup(u => u.Commit()).Verifiable();
-            _mapper.Setup(m => m.Map<UserDto>(It.IsAny<User>())).Returns((UserDto)userDto);
-            var userService = new UserService(_uow.Object, _token.Object, _mapper.Object);
 
-            var serviceResponse = await userService.Create(new UserServiceRequest(userDto));
+            _uow.Setup(u => u.UsersRepository.CountByColumnValue(It.IsAny<string>(), It.IsAny<string>())).ReturnsAsync(0);
+            _uow.Setup(u => u.UsersRepository.Create(userDomain)).ReturnsAsync(userDomain);
+
+            _mapper.Setup(m => m.Map<UserDto>(It.IsAny<User>())).Returns((UserDto)userDto);
+
+            var validationResult = new ValidationResult();
+            validationResult.Errors.Add(new ValidationFailure("User", "missing required fields"));
+            _validator.Setup(m => m.Validate(userDto)).Returns(validationResult);
+
+            var userService = new UserService(_uow.Object, _token.Object, _mapper.Object,_validator.Object, _sessionValidator.Object);
+
+            var serviceResponse = await userService.Create(userDto);
 
             Assert.NotNull(serviceResponse);
-            Assert.IsType<UserServiceResponse>(serviceResponse);
-            Assert.NotNull(serviceResponse.ErrorMessage);
-            Assert.Equal(OutcomeType.Fail, serviceResponse.Outcome);
-            Assert.Null(serviceResponse.Item);
+            Assert.IsType<ApiReponse>(serviceResponse);
+            Assert.Equal(serviceResponse.hasValidationErros, true);
+            Assert.Equal(serviceResponse.Status, "Error");
+            Assert.Null(serviceResponse.Data);
         }
 
         [Fact]
@@ -88,20 +106,25 @@ namespace findox.Test.Service
             var userDomain = _domain.TestRegularUser;
             var userDto = _dto.TestUserRegularDto;
             _mapper.Setup(m => m.Map<User>(It.IsAny<UserDto>())).Returns(userDomain);
-            _uow.Setup(u => u.Begin()).Verifiable();
-            _uow.Setup(u => u.users.CountByColumnValue(It.IsAny<string>(), It.IsAny<string>())).ReturnsAsync(1);
-            _uow.Setup(u => u.users.Create(userDomain)).ReturnsAsync(userDomain);
-            _uow.Setup(u => u.Commit()).Verifiable();
-            _mapper.Setup(m => m.Map<UserDto>(It.IsAny<User>())).Returns((UserDto)userDto);
-            var userService = new UserService(_uow.Object, _token.Object, _mapper.Object);
 
-            var serviceResponse = await userService.Create(new UserServiceRequest(userDto));
+            _uow.Setup(u => u.UsersRepository.CountByColumnValue(It.IsAny<string>(), It.IsAny<string>())).ReturnsAsync(1);
+            _uow.Setup(u => u.UsersRepository.Create(userDomain)).ReturnsAsync(userDomain);
+
+            _mapper.Setup(m => m.Map<UserDto>(It.IsAny<User>())).Returns((UserDto)userDto);
+
+            var validationResult = new ValidationResult();
+            validationResult.Errors.Add(new ValidationFailure("User", "internal server error"));
+            _validator.Setup(m => m.Validate(userDto)).Returns(validationResult);
+
+            var userService = new UserService(_uow.Object, _token.Object, _mapper.Object,_validator.Object, _sessionValidator.Object);
+
+            var serviceResponse = await userService.Create(userDto);
 
             Assert.NotNull(serviceResponse);
-            Assert.IsType<UserServiceResponse>(serviceResponse);
-            Assert.NotNull(serviceResponse.ErrorMessage);
-            Assert.Equal(OutcomeType.Fail, serviceResponse.Outcome);
-            Assert.Null(serviceResponse.Item);
+            Assert.IsType<ApiReponse>(serviceResponse);
+            Assert.Equal(serviceResponse.hasValidationErros, true);
+            Assert.Equal(serviceResponse.Status, "Error");
+            Assert.Null(serviceResponse.Data);
         }
 
         [Fact]
@@ -111,20 +134,21 @@ namespace findox.Test.Service
             var userDomain = _domain.TestRegularUser;
             var userDto = _dto.TestUserNewRegularDto;
             _mapper.Setup(m => m.Map<User>(It.IsAny<UserDto>())).Returns(userDomain);
-            _uow.Setup(u => u.Begin()).Verifiable();
-            _uow.Setup(u => u.users.CountByColumnValue(It.IsAny<string>(), It.IsAny<string>())).ReturnsAsync(0);
-            _uow.Setup(u => u.users.Create(userDomain)).Throws(new Exception());
-            _uow.Setup(u => u.Commit()).Verifiable();
+            _uow.Setup(u => u.UsersRepository.CountByColumnValue(It.IsAny<string>(), It.IsAny<string>())).ReturnsAsync(0);
+            _uow.Setup(u => u.UsersRepository.Create(userDomain)).Throws(new Exception());
             _mapper.Setup(m => m.Map<UserDto>(It.IsAny<User>())).Returns((UserDto)userDto);
-            var userService = new UserService(_uow.Object, _token.Object, _mapper.Object);
 
-            var serviceResponse = await userService.Create(new UserServiceRequest(userDto));
+            var validationResult = new ValidationResult();
+            validationResult.Errors.Add(new ValidationFailure("User", "internal server error"));
+            _validator.Setup(m => m.Validate(userDto)).Returns(validationResult);
+            var userService = new UserService(_uow.Object, _token.Object, _mapper.Object,_validator.Object, _sessionValidator.Object);
+
+            var serviceResponse = await userService.Create(userDto);
 
             Assert.NotNull(serviceResponse);
-            Assert.IsType<UserServiceResponse>(serviceResponse);
-            Assert.Null(serviceResponse.ErrorMessage);
-            Assert.Equal(OutcomeType.Error, serviceResponse.Outcome);
-            Assert.Null(serviceResponse.Item);
+            Assert.IsType<ApiReponse>(serviceResponse);
+            Assert.Equal(serviceResponse.Status, "Error");
+            Assert.Null(serviceResponse.Data);
         }
     }
 }

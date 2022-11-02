@@ -29,29 +29,15 @@ namespace findox.Api.Controllers
         [Authorize(Roles = "manager, admin")]
         public async Task<ActionResult> Create(IFormCollection metadata, IFormFile file)
         {
-            try
-            {
-                var serviceRequest = new DocumentServiceRequest(metadata, file, User);
-                var serviceResponse = await _documentService.Create(serviceRequest);
-                var response = new ControllerResponse();
-                switch (serviceResponse.Outcome)
-                {
-                    case OutcomeType.Error:
-                        response.Error();
-                        return StatusCode(500, response);
-                    case OutcomeType.Fail:
-                        response.Fail(serviceResponse.ErrorMessage);
-                        return BadRequest(response);
-                    case OutcomeType.Success:
-                        response.Success(serviceResponse.Item);
-                        return Ok(response);
-                }
-            }
-            catch (Exception)
-            {
-                return StatusCode(500);
-            }
-            return StatusCode(500);
+            var serviceRequest = new DocumentServiceRequest(metadata, file, User);
+            var serviceResponse = await _documentService.Create(serviceRequest);
+            
+            if(serviceResponse.hasValidationErros)
+                return BadRequest(serviceResponse);
+            else if(serviceResponse.hasValidationErros)
+                return StatusCode(500, serviceResponse);
+            
+            return Ok(serviceResponse);
         }
 
         #endregion CREATE
@@ -62,87 +48,44 @@ namespace findox.Api.Controllers
         [Authorize]
         public async Task<ActionResult> ReadAll()
         {
-            try
-            {
-                var serviceRequest = new DocumentServiceRequest() { PrincipalUser = User };
-                var serviceResponse = await _documentService.ReadAllPermissioned(serviceRequest);
-                var response = new ControllerResponse();
-                switch (serviceResponse.Outcome)
-                {
-                    case OutcomeType.Error:
-                        response.Error();
-                        return StatusCode(500, response);
-                    case OutcomeType.Fail:
-                        response.Fail(serviceResponse.ErrorMessage);
-                        return BadRequest(response);
-                    case OutcomeType.Success:
-                        response.Success(serviceResponse.List);
-                        return Ok(response);
-                }
-            }
-            catch (Exception)
-            {
-                return StatusCode(500);
-            }
-            return StatusCode(500);
+            var serviceRequest = new DocumentServiceRequest() { PrincipalUser = User };
+            var serviceResponse = await _documentService.ReadAllPermissioned(serviceRequest);
+            
+            if(serviceResponse.hasValidationErros)
+                return BadRequest(serviceResponse);
+            else if(serviceResponse.hasValidationErros)
+                return StatusCode(500, serviceResponse);
+            
+            return Ok(serviceResponse);
         }
 
         [HttpGet("{id}")]
         [Authorize]
         public async Task<ActionResult> ReadById(long id)
         {
-            try
-            {
-                var serviceRequest = new DocumentServiceRequest() { Id = id, PrincipalUser = User };
-                var serviceResponse = await _documentService.ReadByIdPermissioned(serviceRequest);
-                var response = new ControllerResponse();
-                switch (serviceResponse.Outcome)
-                {
-                    case OutcomeType.Error:
-                        response.Error();
-                        return StatusCode(500, response);
-                    case OutcomeType.Fail:
-                        response.Fail(serviceResponse.ErrorMessage);
-                        return BadRequest(response);
-                    case OutcomeType.Success:
-                        if (serviceResponse.FileContentResult is not null) return serviceResponse.FileContentResult;
-                        else return StatusCode(500, response);
-                }
-            }
-            catch (Exception)
-            {
-                return StatusCode(500);
-            }
-            return StatusCode(500);
+            var serviceRequest = new DocumentServiceRequest() { Id = id, PrincipalUser = User };
+            var serviceResponse = await _documentService.ReadByIdPermissioned(serviceRequest);
+            
+            if(serviceResponse.hasValidationErros)
+                return BadRequest(serviceResponse);
+            else if(serviceResponse.hasValidationErros)
+                return StatusCode(500, serviceResponse);
+            
+            return Ok(serviceResponse);
         }
 
         [HttpGet("/v1/documents/{id}/permissions")]
         [Authorize(Roles = "admin")]
         public async Task<ActionResult> ReadPermissionsByDocumentId(long id)
         {
-            try
-            {
-                var serviceRequest = new PermissionServiceRequest(id);
-                var serviceResponse = await _permissionService.ReadByDocumentId(serviceRequest);
-                var response = new ControllerResponse();
-                switch (serviceResponse.Outcome)
-                {
-                    case OutcomeType.Error:
-                        response.Error();
-                        return StatusCode(500, response);
-                    case OutcomeType.Fail:
-                        response.Fail(serviceResponse.ErrorMessage);
-                        return BadRequest(response);
-                    case OutcomeType.Success:
-                        response.Success(serviceResponse.List);
-                        return Ok(response);
-                }
-            }
-            catch (Exception)
-            {
-                return StatusCode(500);
-            }
-            return StatusCode(500);
+            var serviceResponse = await _permissionService.ReadByDocumentId(id);
+            
+            if(serviceResponse.hasValidationErros)
+                return BadRequest(serviceResponse);
+            else if(serviceResponse.hasValidationErros)
+                return StatusCode(500, serviceResponse);
+            
+            return Ok(serviceResponse);
         }
 
         #endregion READ
@@ -153,31 +96,17 @@ namespace findox.Api.Controllers
         [Authorize(Roles = "admin")]
         public async Task<ActionResult> Update([FromRoute] long id, [FromBody] DocumentDto documentDto)
         {
-            try
-            {
-                if (id != documentDto.Id) return BadRequest($"Id mismatch: Route {id} ≠ Body {documentDto.Id}");
+            if (id != documentDto.Id) return BadRequest($"Id mismatch: Route {id} ≠ Body {documentDto.Id}");
 
-                var serviceRequest = new DocumentServiceRequest(documentDto);
-                var serviceResponse = await _documentService.Update(serviceRequest);
-                var response = new ControllerResponse();
-                switch (serviceResponse.Outcome)
-                {
-                    case OutcomeType.Error:
-                        response.Error();
-                        return StatusCode(500, response);
-                    case OutcomeType.Fail:
-                        response.Fail(serviceResponse.ErrorMessage);
-                        return BadRequest(response);
-                    case OutcomeType.Success:
-                        response.Success("Document updated.");
-                        return Ok(response);
-                }
-            }
-            catch (Exception)
-            {
-                return StatusCode(500);
-            }
-            return StatusCode(500);
+            var serviceRequest = new DocumentServiceRequest(documentDto);
+            var serviceResponse = await _documentService.Update(serviceRequest);
+            
+            if(serviceResponse.hasValidationErros)
+                return BadRequest(serviceResponse);
+            else if(serviceResponse.hasValidationErros)
+                return StatusCode(500, serviceResponse);
+            
+            return Ok(serviceResponse);
         }
 
         #endregion UPDATE
@@ -188,58 +117,29 @@ namespace findox.Api.Controllers
         [Authorize(Roles = "admin")]
         public async Task<ActionResult> DeleteById(long id)
         {
-            try
-            {
-                var serviceRequest = new DocumentServiceRequest(id);
-                var serviceResponse = await _documentService.DeleteById(serviceRequest);
-                var response = new ControllerResponse();
-                switch (serviceResponse.Outcome)
-                {
-                    case OutcomeType.Error:
-                        response.Error();
-                        return StatusCode(500, response);
-                    case OutcomeType.Fail:
-                        response.Fail(serviceResponse.ErrorMessage);
-                        return BadRequest(response);
-                    case OutcomeType.Success:
-                        response.Success("Document deleted.");
-                        return Ok(response);
-                }
-            }
-            catch (Exception)
-            {
-                return StatusCode(500);
-            }
-            return StatusCode(500);
+            var serviceRequest = new DocumentServiceRequest(id);
+            var serviceResponse = await _documentService.DeleteById(serviceRequest);
+            
+            if(serviceResponse.hasValidationErros)
+                return BadRequest(serviceResponse);
+            else if(serviceResponse.hasValidationErros)
+                return StatusCode(500, serviceResponse);
+            
+            return Ok(serviceResponse);
         }
 
         [HttpDelete("/v1/documents/{id}/permissions")]
         [Authorize(Roles = "admin")]
         public async Task<ActionResult> DeletePermissionsByDocumentId(long id)
         {
-            try
-            {
-                var serviceRequest = new PermissionServiceRequest(id);
-                var serviceResponse = await _permissionService.DeleteByDocumentId(serviceRequest);
-                var response = new ControllerResponse();
-                switch (serviceResponse.Outcome)
-                {
-                    case OutcomeType.Error:
-                        response.Error();
-                        return StatusCode(500, response);
-                    case OutcomeType.Fail:
-                        response.Fail(serviceResponse.ErrorMessage);
-                        return BadRequest(response);
-                    case OutcomeType.Success:
-                        response.Success("Permissions deleted.");
-                        return Ok(response);
-                }
-            }
-            catch (Exception)
-            {
-                return StatusCode(500);
-            }
-            return StatusCode(500);
+            var serviceResponse = await _permissionService.DeleteByDocumentId(id);
+            
+            if(serviceResponse.hasValidationErros)
+                return BadRequest(serviceResponse);
+            else if(serviceResponse.hasValidationErros)
+                return StatusCode(500, serviceResponse);
+            
+            return Ok(serviceResponse);
         }
 
         #endregion DELETE

@@ -69,7 +69,7 @@ END;
 $$;
 
 CREATE OR REPLACE FUNCTION storage.documents_get_by_id (
-    id_value BIGINT
+    id BIGINT
 )
     RETURNS SETOF storage.documents
     LANGUAGE PLPGSQL
@@ -109,7 +109,7 @@ END;
 $$;
 
 CREATE OR REPLACE FUNCTION storage.documents_content_get_by_document_id (
-    id_value BIGINT
+    id BIGINT
 )
     RETURNS SETOF storage.document_content
     LANGUAGE PLPGSQL
@@ -159,7 +159,7 @@ END;
 $$;
 
 CREATE OR REPLACE FUNCTION storage.documents_content_delete_by_document_id (
-    id_value BIGINT
+    id BIGINT
 )
     RETURNS BOOLEAN
     LANGUAGE PLPGSQL

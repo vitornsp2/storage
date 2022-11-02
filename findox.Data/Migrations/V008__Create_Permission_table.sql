@@ -3,6 +3,7 @@ CREATE TABLE IF NOT EXISTS storage.permissions (
     document_id BIGINT NOT NULL,
     user_id BIGINT NULL,
     group_id BIGINT NULL, 
+    created_date TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT fk_documents_of_permissions FOREIGN KEY (document_id) REFERENCES storage.documents (id) ON DELETE NO ACTION,
     CONSTRAINT fk_user_of_permissions FOREIGN KEY (user_id) REFERENCES storage.users (id) ON DELETE NO ACTION,
     CONSTRAINT fk_group_of_permissions FOREIGN KEY (group_id) REFERENCES storage.groups (id) ON DELETE NO ACTION

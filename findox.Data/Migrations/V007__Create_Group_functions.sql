@@ -57,7 +57,7 @@ END;
 $$;
 
 CREATE OR REPLACE FUNCTION storage.groups_get_by_id (
-    id_value BIGINT
+    id BIGINT
 )
     RETURNS SETOF storage.groups
     LANGUAGE PLPGSQL
@@ -72,7 +72,7 @@ END;
 $$;
 
 CREATE OR REPLACE FUNCTION storage.users_groups_get_by_id (
-    id_value BIGINT
+    id BIGINT
 )
     RETURNS SETOF storage.users_groups
     LANGUAGE PLPGSQL
@@ -87,7 +87,7 @@ END;
 $$;
 
 CREATE OR REPLACE FUNCTION storage.users_groups_get_by_group_id (
-    id_value BIGINT
+    group_id BIGINT
 )
     RETURNS SETOF storage.users_groups
     LANGUAGE PLPGSQL
@@ -102,7 +102,7 @@ END;
 $$;
 
 CREATE OR REPLACE FUNCTION storage.users_groups_get_by_user_id (
-    id_value BIGINT
+    user_id BIGINT
 )
     RETURNS SETOF storage.users_groups
     LANGUAGE PLPGSQL
@@ -135,7 +135,7 @@ END;
 $$;
 
 CREATE OR REPLACE FUNCTION storage.groups_delete_by_id (
-    id_value BIGINT
+    id BIGINT
 )
     RETURNS BOOLEAN
     LANGUAGE PLPGSQL
@@ -150,7 +150,7 @@ END;
 $$;
 
 CREATE OR REPLACE FUNCTION storage.users_groups_delete_by_id (
-    id_value BIGINT
+    id BIGINT
 )
     RETURNS BOOLEAN
     LANGUAGE PLPGSQL
@@ -165,7 +165,7 @@ END;
 $$;
 
 CREATE OR REPLACE FUNCTION storage.users_groups_delete_by_group_id (
-    id_value BIGINT
+    group_id BIGINT
 )
     RETURNS BOOLEAN
     LANGUAGE PLPGSQL
@@ -180,7 +180,7 @@ END;
 $$;
 
 CREATE OR REPLACE FUNCTION storage.users_groups_delete_by_user_id (
-    id_value BIGINT
+    user_id BIGINT
 )
     RETURNS BOOLEAN
     LANGUAGE PLPGSQL
@@ -191,5 +191,68 @@ BEGIN
     FROM storage.users_groups
     WHERE storage.users_groups.user_id = $1;
     RETURN FOUND;
+END;
+$$;
+CREATE OR REPLACE FUNCTION storage.groups_count_by_column_value_text (
+    column_name TEXT,
+    column_value TEXT
+)
+    RETURNS integer
+    LANGUAGE PLPGSQL
+    AS
+$$
+DECLARE
+    row_count integer;
+    query text := 'SELECT COUNT(*) FROM storage.groups';
+BEGIN
+    IF column_name IS NOT NULL THEN
+        query := query || ' WHERE ' || quote_ident(column_name) || ' = $1';
+    END IF;
+    EXECUTE query
+    USING column_value
+    INTO row_count;
+    RETURN row_count;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION storage.users_groups_count_by_column_value_id (
+    column_name TEXT,
+    column_value BIGINT
+)
+    RETURNS integer
+    LANGUAGE PLPGSQL
+    AS
+$$
+DECLARE
+    row_count integer;
+    query text := 'SELECT COUNT(*) FROM storage.users_groups';
+BEGIN
+    IF column_name IS NOT NULL THEN
+        query := query || ' WHERE ' || quote_ident(column_name) || ' = $1';
+    END IF;
+    EXECUTE query
+    USING column_value
+    INTO row_count;
+    RETURN row_count;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION storage.users_groups_count_by_group_and_user (
+    id_group BIGINT,
+    id_user BIGINT
+)
+    RETURNS integer
+    LANGUAGE PLPGSQL
+    AS
+$$
+DECLARE
+    row_count integer;
+BEGIN
+    SELECT COUNT(*)
+    FROM storage.users_groups
+    WHERE storage.users_groups.group_id = $1
+        AND storage.users_groups.user_id = $2
+    INTO row_count;
+    RETURN row_count;
 END;
 $$;

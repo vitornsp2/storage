@@ -1,177 +1,87 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
+using Dapper;
 using findox.Domain.Interfaces.Repository;
-using findox.Domain.Maps;
 using findox.Domain.Models.Database;
-using Npgsql;
 
 namespace findox.Data.Repositories
 {
-    public class DocumentRepository : BaseRepository, IDocumentRepository
+    public class DocumentRepository : BaseRepository<Document>, IDocumentRepository
     {
-        public DocumentRepository(NpgsqlConnection connection) : base(connection)
+        public DocumentRepository() : base()
         {
-            _connection = connection;
         }
 
         public async Task<Document> Create(Document document)
         {
-            using (var command = new NpgsqlCommand())
-            {
-                command.CommandText = $"SELECT * FROM storage.documents_create('{document.Filename}', '{document.ContentType}', {document.UserId}";
+            var procedureName = "storage.documents_create";
 
-                if (document.Description is not null) command.CommandText += $", '{document.Description}'";
-                else command.CommandText += $", null";
+            var param = new DynamicParameters();
 
-                if (document.Category is not null) command.CommandText += $", '{document.Category}'";
-                else command.CommandText += $", null";
+            param.Add("filename", document.Filename);
+            param.Add("content_type", document.ContentType);
+            param.Add("user_id", document.UserId);
+            param.Add("description", string.IsNullOrWhiteSpace(document.Description) ? null : document.Description);
+            param.Add("category", string.IsNullOrWhiteSpace(document.Category) ? null : document.Category);
 
-                command.CommandText += $");";
-
-                var reader = await RunQuery(command);
-
-                var newDocument = new Document();
-                while (await reader.ReadAsync())
-                {
-                    var map = new DatabaseMap();
-                    newDocument = map.Document(reader);
-                }
-                reader.Close();
-                return newDocument;
-            }
+            var id = ((long?)await base.ExecuteEscalar(procedureName, param));
+            document.Id = id.HasValue ? id.Value : 0;
+            return document;
         }
 
-        public async Task<List<Document>> ReadAll()
+        public async Task<IEnumerable<Document>> ReadAll()
         {
-            using (var command = new NpgsqlCommand())
-            {
-                command.CommandText = $"SELECT * FROM storage.documents_get_all();";
-
-                var reader = await RunQuery(command);
-                var documents = new List<Document>();
-                while (await reader.ReadAsync())
-                {
-                    var map = new DatabaseMap();
-                    documents.Add(map.Document(reader));
-                }
-                reader.Close();
-                return documents;
-            }
+            var procedureName = "storage.documents_get_all";
+            var documents = await base.Query(procedureName);
+            return documents;
         }
 
-        public async Task<Document> ReadById(long id)
+        public async Task<Document?> ReadById(long id)
         {
-            using (var command = new NpgsqlCommand())
-            {
-                command.CommandText = $"SELECT * FROM storage.documents_get_by_id({id});";
-
-                var reader = await RunQuery(command);
-                var document = new Document();
-                while (await reader.ReadAsync())
-                {
-                    var map = new DatabaseMap();
-                    document = map.Document(reader);
-                }
-                reader.Close();
-                return document;
-            }
+            var procedureName = "storage.documents_get_by_id";
+            var param = new { id = id };
+            var documents = await base.Query(procedureName, param);
+            return documents?.FirstOrDefault();
         }
 
-        public async Task<List<Document>> ReadAllPermitted(long requestingUserId)
+        public async Task<IEnumerable<Document>> ReadAllPermitted(long requestingUserId)
         {
-            using (var command = new NpgsqlCommand())
-            {
-                command.CommandText = $"SELECT * FROM storage.documents_get_all_permitted({requestingUserId});";
-
-                var reader = await RunQuery(command);
-                var documents = new List<Document>();
-                while (await reader.ReadAsync())
-                {
-                    var map = new DatabaseMap();
-                    documents.Add(map.Document(reader));
-                }
-                reader.Close();
-                return documents;
-            }
+            var procedureName = "storage.documents_get_all_permitted";
+            var param = new { id_user = requestingUserId };
+            return await base.Query(procedureName, param);
         }
 
-        public async Task<Document> ReadByIdPermitted(long documentId, long userId)
+        public async Task<Document?> ReadByIdPermitted(long documentId, long userId)
         {
-            using (var command = new NpgsqlCommand())
-            {
-                command.CommandText = $"SELECT * FROM storage.documents_get_by_id_permitted({documentId}, {userId});";
-
-                var reader = await RunQuery(command);
-                var document = new Document();
-                while (await reader.ReadAsync())
-                {
-                    var map = new DatabaseMap();
-                    document = map.Document(reader);
-                }
-                reader.Close();
-                return document;
-            }
+            var procedureName = "storage.documents_get_by_id_permitted";
+            var param = new { id_document = documentId, id_user = userId };
+            var documents = await base.Query(procedureName, param);
+            return documents?.FirstOrDefault();
         }
 
-        public async Task<bool> UpdateById(Document document)
+        public async Task<bool?> UpdateById(Document document)
         {
-            using (var command = new NpgsqlCommand())
-            {
-                command.CommandText = $"SELECT * FROM storage.documents_update({document.Id}";
+            var param = new DynamicParameters();
+            var procedureName = "storage.documents_update";
 
-                if (document.Filename is not null) command.CommandText += $", '{document.Filename}'";
-                else command.CommandText += $", null";
+            param.Add("id", document.Id);
+            param.Add("filename", string.IsNullOrWhiteSpace(document.Filename) ? null : document.Filename);
+            param.Add("description", string.IsNullOrWhiteSpace(document.Description) ? null : document.Description);
+            param.Add("category", string.IsNullOrWhiteSpace(document.Category) ? null : document.Category);
 
-                if (document.Description is not null) command.CommandText += $", '{document.Description}'";
-                else command.CommandText += $", null";
-
-                if (document.Category is not null) command.CommandText += $", '{document.Category}'";
-                else command.CommandText += $", null";
-
-                command.CommandText += ");";
-
-                var result = await RunScalar(command);
-                var success = false;
-                if (result is not null)
-                {
-                    success = bool.Parse($"{result.ToString()}");
-                }
-                return success;
-            }
+            return (bool?)await base.ExecuteEscalar(procedureName, param);
         }
 
-        public async Task<bool> DeleteById(long id)
+        public async Task<bool?> DeleteById(long id)
         {
-            using (var command = new NpgsqlCommand())
-            {
-                command.CommandText = $"SELECT * FROM storage.documents_delete_by_id({id});";
-
-                var result = await RunScalar(command);
-                var success = false;
-                if (result is not null)
-                {
-                    success = bool.Parse($"{result.ToString()}");
-                }
-                return success;
-            }
+            var procedureName = "storage.documents_delete_by_id";
+            var param = new { id = id };
+            return (bool?)await base.ExecuteEscalar(procedureName, param);
         }
 
-        public async Task<int> CountByColumnValue(string column, string value)
+        public async Task<int?> CountByColumnValue(string column, string value)
         {
-            using (var command = new NpgsqlCommand())
-            {
-                command.CommandText = $"SELECT * FROM storage.documents_count_by_column_value_text('{column}', '{value}');";
-
-                var result = await RunScalar(command);
-                int count = 0;
-                if (result is not null)
-                {
-                    count = int.Parse($"{result.ToString()}");
-                }
-                return count;
-            }
+            var procedureName = "storage.documents_count_by_column_value_text";
+            var param = new { column_name = column, column_value = value };
+            return (int?)await base.ExecuteEscalar(procedureName, param);
         }
     }
 }

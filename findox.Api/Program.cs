@@ -1,8 +1,12 @@
 using System.Text;
-using findox.Data.DAL;
-using findox.Domain.Interfaces.DAL;
+using findox.Data.Repositories;
+using findox.Data.Repository;
+using findox.Domain.Interfaces.Repository;
 using findox.Domain.Interfaces.Service;
+using findox.Domain.Models.Dto;
+using findox.Domain.Validator;
 using findox.Service.Services;
+using FluentValidation;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
@@ -12,10 +16,24 @@ var builder = WebApplication.CreateBuilder(args);
 // Add the AutoMapper - https://automapper.org/
 builder.Services.AddAutoMapper(AppDomain.CurrentDomain.GetAssemblies());
 
+// add validation model
+builder.Services.AddScoped<IValidator<UserDto>, UserValidator>();
+builder.Services.AddScoped<IValidator<UserSessionDto>, UserSessionValidator>();
+builder.Services.AddScoped<IValidator<GroupDto>, GroupValidator>();
+builder.Services.AddScoped<IValidator<UserGroupDto>, UserGroupValidator>();
+builder.Services.AddScoped<IValidator<PermissionDto>, PermissionValidator>();
+
+// Add repositories to the container to be used for dependency injection.
+builder.Services.AddTransient<IUserRepository, UserRepository>();
+builder.Services.AddTransient<IDocumentRepository, DocumentRepository>();
+builder.Services.AddTransient<IDocumentContentRepository, DocumentContentRepository>();
+builder.Services.AddTransient<IGroupRepository, GroupRepository>();
+builder.Services.AddTransient<IUserGroupRepository, UserGroupRepository>();
+builder.Services.AddTransient<IPermissionRepository, PermissionRepository>();
+builder.Services.AddTransient<IUnitOfWork, UnitOfWork>();
 
 // Add services to the container to be used for dependency injection.
 builder.Services.AddTransient<ITokenService, TokenService>();
-builder.Services.AddTransient<IUnitOfWork, UnitOfWork>();
 builder.Services.AddTransient<IUserService, UserService>();
 builder.Services.AddTransient<IDocumentService, DocumentService>();
 builder.Services.AddTransient<IGroupService, GroupService>();

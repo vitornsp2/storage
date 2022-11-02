@@ -1,348 +1,301 @@
 using AutoMapper;
-using findox.Domain.Interfaces.DAL;
+using findox.Domain.Interfaces.Repository;
 using findox.Domain.Interfaces.Service;
 using findox.Domain.Models.Database;
 using findox.Domain.Models.Dto;
 using findox.Domain.Models.Service;
+using FluentValidation;
 
 namespace findox.Service.Services
 {
-    public class UserService : IUserService
+    public class UserService : BaseService, IUserService
     {
+        private readonly IValidator<UserDto> _validator;
+        private readonly IValidator<UserSessionDto> _sessionValidator;
         private readonly IUnitOfWork _unitOfWork;
-
         private readonly ITokenService _jwt;
-
         private readonly IMapper _mapper;
 
-        public UserService(IUnitOfWork unitOfWork, ITokenService tokenService, IMapper mapper)
+        public UserService(IUnitOfWork unitOfWork,
+                           ITokenService tokenService,
+                           IMapper mapper,
+                           IValidator<UserDto> validator,
+                           IValidator<UserSessionDto> sessionValidator
+                           )
         {
             _unitOfWork = unitOfWork;
             _jwt = tokenService;
             _mapper = mapper;
+            _validator = validator;
+            _sessionValidator = sessionValidator;
         }
 
-        public async Task<IUserServiceResponse> Create(IUserServiceRequest request)
+        public async Task<ApiReponse> Create(UserDto userDto)
         {
-            var response = new UserServiceResponse();
+            var response = new ApiReponse();
+            
+            var validationResult = _validator.Validate(userDto);
 
-            if (
-                request.Item?.Name is null || string.IsNullOrWhiteSpace(request.Item.Name) ||
-                request.Item?.Email is null || string.IsNullOrWhiteSpace(request.Item.Email) ||
-                request.Item?.Password is null || string.IsNullOrWhiteSpace(request.Item.Password))
+            if (validationResult.IsValid)
             {
-                response.Outcome = OutcomeType.Fail;
-                response.ErrorMessage = "Name, Email, Password, and Role (regular, manager, or admin) are required.";
-                return response;
-            }
-
-            try
-            {
-                var user = _mapper.Map<User>(request.Item);
-
-                _unitOfWork.Begin();
-
-                var existingNameCount = await _unitOfWork.users.CountByColumnValue("name", request.Item.Name);
-                if (existingNameCount > 0)
+                try
                 {
-                    response.Outcome = OutcomeType.Fail;
-                    response.ErrorMessage = "Requested user name is already in use.";
-                    return response;
-                }
+                    var user = _mapper.Map<User>(userDto);
 
-                var existingEmailCount = await _unitOfWork.users.CountByColumnValue("email", request.Item.Email);
-                if (existingEmailCount > 0)
+                    var existingNameCount = await _unitOfWork.UsersRepository.CountByColumnValue("name", user.Name);
+                    if (existingNameCount > 0)
+                    {
+                        addMessage(response.ValidationErros, "Name", "Requested user name is already in use.");
+                        return response;
+                    }
+
+                    var existingEmailCount = await _unitOfWork.UsersRepository.CountByColumnValue("email", user.Email);
+                    if (existingEmailCount > 0)
+                    {
+                        addMessage(response.ValidationErros, "Email", "Requested user email is already in use.");
+                        return response;
+                    }
+
+                    var newUser = await _unitOfWork.UsersRepository.Create(user);
+
+                    response.Data = _mapper.Map<UserDto>(newUser);
+                }
+                catch (Exception err)
                 {
-                    response.Outcome = OutcomeType.Fail;
-                    response.ErrorMessage = "Requested user email is already in use.";
-                    return response;
+                    response.Erros = ToDictionary(err);
                 }
-
-                var newUser = await _unitOfWork.users.Create(user);
-
-                _unitOfWork.Commit();
-                
-                response.Item = _mapper.Map<UserDto>(newUser);
-
-                response.Outcome = OutcomeType.Success;
             }
-            catch (Exception)
+            else
             {
-                response.Outcome = OutcomeType.Error;
+                response.ValidationErros = validationResult.ToDictionary();
             }
 
             return response;
         }
 
-        public async Task<IUserServiceResponse> ReadAll(IUserServiceRequest request)
+        public async Task<ApiReponse> ReadAll()
         {
-            var response = new UserServiceResponse();
+            var response = new ApiReponse();
 
             try
             {
-                var users = await _unitOfWork.users.ReadAll();
-
-                var userDtos = new List<IUserDto>();
-                foreach (var user in users) userDtos.Add(_mapper.Map<UserDto>(user));
-                response.List = userDtos;
-
-                response.Outcome = OutcomeType.Success;
+                var users = await _unitOfWork.UsersRepository.ReadAll();
+                response.Data = _mapper.Map<List<UserDto>>(users);
             }
-            catch (Exception)
+            catch (Exception err)
             {
-                response.Outcome = OutcomeType.Error;
+                response.Erros = ToDictionary(err);
             }
 
             return response;
         }
-        public async Task<IUserServiceResponse> ReadById(IUserServiceRequest request)
+        public async Task<ApiReponse> ReadById(long? id)
         {
-            var response = new UserServiceResponse();
+            var response = new ApiReponse();
 
-
-            if (!request.Id.HasValue || request.Id == 0)
+            if (!id.HasValue || id == 0)
             {
-                response.Outcome = OutcomeType.Fail;
-                response.ErrorMessage = "Id is required to find a user by user id.";
+                addMessage(response.ValidationErros, "Id", "Id is required to find a user by user id.");
                 return response;
             }
 
             try
             {
-                var user = await _unitOfWork.users.ReadById((long)request.Id);
+                var user = await _unitOfWork.UsersRepository.ReadById(id.Value);
 
-                if (user.Id != request.Id)
+                if (user?.Id != id)
                 {
-                    response.Outcome = OutcomeType.Fail;
-                    response.ErrorMessage = "User was not found with the specified id.";
+                    addMessage(response.ValidationErros, "Id", "User was not found with the specified id.");
                     return response;
                 }
 
-                var userGroups = await _unitOfWork.userGroups.ReadByUserId(user.Id);
+                var userGroups = await _unitOfWork.UserGroupsRepository.ReadByUserId(user.Id);
 
                 if (userGroups.Any())
                 {
-                    user.UserGroups = userGroups;
+                    user.UserGroups = userGroups.ToList();
                 }
 
-                var permissions = await _unitOfWork.permissions.ReadByUserId(user.Id);
+                var permissions = await _unitOfWork.PermissionsRepository.ReadByUserId(user.Id);
                 if (permissions.Any())
                 {
-                    user.Permissions = permissions;
+                    user.Permissions = permissions.ToList();
                 }
 
-                response.AllDto = _mapper.Map<UserAllDto>(user);
+                response.Data = _mapper.Map<UserAllDto>(user);
 
-                response.Outcome = OutcomeType.Success;
             }
-            catch (Exception)
+            catch (Exception err)
             {
-                response.Outcome = OutcomeType.Error;
+                response.Erros = ToDictionary(err);
             }
 
             return response;
         }
 
-
-        public async Task<IUserServiceResponse> Update(IUserServiceRequest request)
+        public async Task<ApiReponse> Update(UserDto userDto)
         {
-            var response = new UserServiceResponse();
+            var response = new ApiReponse();
 
-            if (request.Item?.Id is null || request.Item.Id == 0)
+            if (!userDto.Id.HasValue || userDto.Id == 0)
             {
-                response.Outcome = OutcomeType.Fail;
-                response.ErrorMessage = "Id is required to update a user.";
+                addMessage(response.ValidationErros, "Id", "Id is required to update a user.");
                 return response;
             }
 
             try
             {
-                var user = _mapper.Map<User>(request.Item);
+                var user = _mapper.Map<User>(userDto);
 
-                _unitOfWork.Begin();
-
-                var existing = await _unitOfWork.users.ReadById(user.Id);
-                if (existing.Id != user.Id)
+                var existing = await _unitOfWork.UsersRepository.ReadById(user.Id);
+                if (existing?.Id != user.Id)
                 {
-                    response.Outcome = OutcomeType.Fail;
-                    response.ErrorMessage = "Requested user id for update does not exist.";
+                    addMessage(response.ValidationErros, "Id", "Requested user id for update does not exist.");
                     return response;
                 }
 
-                var successful = await _unitOfWork.users.UpdateById(user);
+                var successful = await _unitOfWork.UsersRepository.UpdateById(user);
 
-                if (!successful)
+                if (!successful.Value)
                 {
-                    _unitOfWork.Rollback();
-                    response.Outcome = OutcomeType.Fail;
-                    response.ErrorMessage = "User was not updated.";
+                    addMessage(response.ValidationErros, "User", "User was not updated.");
                     return response;
                 }
-
-                _unitOfWork.Commit();
-
-                response.Outcome = OutcomeType.Success;
             }
-            catch (Exception)
+            catch (Exception err)
             {
-                response.Outcome = OutcomeType.Error;
+                response.Erros = ToDictionary(err);
             }
 
             return response;
         }
 
-        public async Task<IUserServiceResponse> UpdatePassword(IUserServiceRequest request)
+        public async Task<ApiReponse> UpdatePassword(UserDto userDto)
         {
-            var response = new UserServiceResponse();
+            var response = new ApiReponse();
 
-            if (request.Item?.Id is null || request.Item?.Id == 0 || request.Item?.Password is null)
+            if (!userDto.Id.HasValue || userDto?.Id == 0 || userDto?.Password is null)
             {
-                response.Outcome = OutcomeType.Fail;
-                response.ErrorMessage = "Id and Password are required to update a user password.";
+                addMessage(response.ValidationErros, "User", "Id and Password are required to update a user password.");
                 return response;
             }
 
             try
             {
-                var user = _mapper.Map<User>(request.Item);
+                var user = _mapper.Map<User>(userDto);
 
-                _unitOfWork.Begin();
-
-                var existing = await _unitOfWork.users.ReadById(user.Id);
-                if (existing.Id != user.Id)
+                var existing = await _unitOfWork.UsersRepository.ReadById(user.Id);
+                if (existing?.Id != user.Id)
                 {
-                    response.Outcome = OutcomeType.Fail;
-                    response.ErrorMessage = "Requested user or user id for update does not exist.";
+                    addMessage(response.ValidationErros, "User", "Requested user or user id for update does not exist.");
                     return response;
                 }
 
-                var successful = await _unitOfWork.users.UpdatePasswordById(user);
+                var successful = await _unitOfWork.UsersRepository.UpdatePasswordById(user);
 
-                if (!successful)
+                if (!successful.Value)
                 {
-                    _unitOfWork.Rollback();
-                    response.Outcome = OutcomeType.Fail;
-                    response.ErrorMessage = "User password was not updated.";
+                    addMessage(response.ValidationErros, "User", "User password was not updated.");
                     return response;
                 }
-                
-                _unitOfWork.Commit();
-
-                response.Outcome = OutcomeType.Success;
             }
-            catch (Exception)
+            catch (Exception err)
             {
-                response.Outcome = OutcomeType.Error;
+                response.Erros = ToDictionary(err);
             }
 
             return response;
         }
 
-        public async Task<IUserServiceResponse> DeleteById(IUserServiceRequest request)
+        public async Task<ApiReponse> DeleteById(long? id)
         {
-            var response = new UserServiceResponse();
+            var response = new ApiReponse();
 
-            if (!request.Id.HasValue)
+            if (!id.HasValue)
             {
-                response.Outcome = OutcomeType.Fail;
-                response.ErrorMessage = "Id is required to delete a user by user id.";
+                addMessage(response.ValidationErros, "User", "Id is required to delete a user by user id.");
                 return response;
             }
 
             try
             {
-                _unitOfWork.Begin();
-
-                var existing = await _unitOfWork.users.ReadById((long)request.Id);
-                if (existing.Id != request.Id)
+                var existing = await _unitOfWork.UsersRepository.ReadById(id.Value);
+                if (existing?.Id != id)
                 {
-                    response.Outcome = OutcomeType.Fail;
-                    response.ErrorMessage = "Requested user id for delete does not exist.";
+                    addMessage(response.ValidationErros, "User", "Requested user id for delete does not exist.");
                     return response;
                 }
 
-                var userGroupsCount = await _unitOfWork.userGroups.CountByColumnValue("user_id", (long)request.Id);
+                var userGroupsCount = await _unitOfWork.UserGroupsRepository.CountByColumnValue("user_id", id.Value);
                 if (userGroupsCount > 0)
                 {
-                    var successfulDeleteUserGroups = await _unitOfWork.userGroups.DeleteByUserId((long)request.Id);
+                    var successfulDeleteUserGroups = await _unitOfWork.UserGroupsRepository.DeleteByUserId(id.Value);
 
-                    if (!successfulDeleteUserGroups)
+                    if (!successfulDeleteUserGroups.Value)
                     {
-                        _unitOfWork.Rollback();
-                        response.Outcome = OutcomeType.Fail;
-                        response.ErrorMessage = "User was not deleted because existing userGroups could not be deleted.";
+                        addMessage(response.ValidationErros, "User", "User was not deleted because existing userGroups could not be deleted.");
                         return response;
                     }
                 }
 
-                var permitsCount = await _unitOfWork.permissions.CountByColumnValue("user_id", (long)request.Id);
+                var permitsCount = await _unitOfWork.PermissionsRepository.CountByColumnValue("user_id", id.Value);
                 if (permitsCount > 0)
                 {
-                    var successfulDeletePermits = await _unitOfWork.permissions.DeleteByUserId((long)request.Id);
+                    var successfulDeletePermits = await _unitOfWork.PermissionsRepository.DeleteByUserId((long)id);
 
-                    if (!successfulDeletePermits)
+                    if (!successfulDeletePermits.Value)
                     {
-                        _unitOfWork.Rollback();
-                        response.Outcome = OutcomeType.Fail;
-                        response.ErrorMessage = "User was not deleted because existing permits could not be deleted.";
+                        addMessage(response.ValidationErros, "User", "User was not deleted because existing permits could not be deleted.");
                         return response;
                     }
                 }
 
-                var successfulDeleteUser = await _unitOfWork.users.DeleteById((long)request.Id);
+                var successfulDeleteUser = await _unitOfWork.UsersRepository.DeleteById(id.Value);
 
-                if (!successfulDeleteUser)
+                if (!successfulDeleteUser.Value)
                 {
-                    _unitOfWork.Rollback();
-                    response.Outcome = OutcomeType.Fail;
-                    response.ErrorMessage = "User was not deleted.";
+                    addMessage(response.ValidationErros, "User", "User was not deleted");
                     return response;
                 }
-
-                _unitOfWork.Commit();
-
-                response.Outcome = OutcomeType.Success;
             }
-            catch (Exception)
+            catch (Exception err)
             {
-                response.Outcome = OutcomeType.Error;
+                response.Erros = ToDictionary(err);
             }
 
             return response;
         }
 
-        public async Task<IUserServiceResponse> CreateSession(IUserServiceRequest request)
+        public async Task<ApiReponse> CreateSession(UserSessionDto userSessionDto)
         {
-            var response = new UserServiceResponse();
+            var response = new ApiReponse();
 
-            if (request.UserSessionDto?.Email is null || request.UserSessionDto.Password is null)
+            var validationResult = _sessionValidator.Validate(userSessionDto);
+
+            if (validationResult.IsValid)
             {
-                response.Outcome = OutcomeType.Fail;
-                response.ErrorMessage = "Email (TEXT) and Password (TEXT) are required to authenticate a user.";
-                return response;
-            }
-
-            try
-            {
-                var user = _mapper.Map<User>(request.UserSessionDto);
-
-                var authenticated = await _unitOfWork.users.Authenticate(user);
-
-                if (authenticated.Id == 0)
+                try
                 {
-                    response.Outcome = OutcomeType.Fail;
-                    response.ErrorMessage = "No match found for Email and Password.";
-                    return response;
+                    var user = _mapper.Map<User>(userSessionDto);
+
+                    var authenticated = await _unitOfWork.UsersRepository.Authenticate(user);
+
+                    if (authenticated is null)
+                    {
+                        addMessage(response.ValidationErros, "Login", "No match found for Email and Password.");
+                        return response;
+                    }
+
+                    response.Data = _jwt.Encode(authenticated.Id, authenticated.Role);
                 }
-                response.Item = _mapper.Map<UserDto>(authenticated);
-
-                response.Token = _jwt.Encode(authenticated.Id, authenticated.Role);
-
-                response.Outcome = OutcomeType.Success;
+                catch
+                {
+                    response.ValidationErros = validationResult.ToDictionary();
+                }
             }
-            catch
+            else
             {
-                response.Outcome = OutcomeType.Error;
+                response.ValidationErros = validationResult.ToDictionary();
             }
 
             return response;

@@ -3,200 +3,164 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using AutoMapper;
-using findox.Domain.Interfaces.DAL;
+using findox.Domain.Interfaces.Repository;
 using findox.Domain.Interfaces.Service;
 using findox.Domain.Models.Database;
 using findox.Domain.Models.Dto;
 using findox.Domain.Models.Service;
+using FluentValidation;
 
 namespace findox.Service.Services
 {
-    public class UserGroupService : IUserGroupService
+    public class UserGroupService : BaseService, IUserGroupService
     {
         private readonly IUnitOfWork _unitOfWork;
         private readonly IMapper _mapper;
+        private readonly IValidator<UserGroupDto> _validator;
 
-        public UserGroupService(IUnitOfWork unitOfWork, IMapper mapper)
+        public UserGroupService(IUnitOfWork unitOfWork, IMapper mapper, IValidator<UserGroupDto> validator)
         {
             _unitOfWork = unitOfWork;
             _mapper = mapper;
+            _validator = validator;
         }
 
-        public async Task<IUserGroupServiceResponse> Create(IUserGroupServiceRequest request)
+        public async Task<ApiReponse> Create(UserGroupDto userGroupDto)
         {
-            var response = new UserGroupServiceResponse();
+            var response = new ApiReponse();
 
-            if (
-                request.Item is null ||
-                request.Item?.GroupId is null || request.Item.GroupId == 0 ||
-                request.Item?.UserId is null || request.Item.UserId == 0
-            )
+            var validationResult = _validator.Validate(userGroupDto);
+
+            if (validationResult.IsValid)
             {
-                response.Outcome = OutcomeType.Fail;
-                response.ErrorMessage = "GroupId and UserId are required.";
-                return response;
-            }
-
-            try
-            {
-                var userGroup = _mapper.Map<UserGroup>(request.Item);
-                
-                _unitOfWork.Begin();
-
-                var existingUserGroupCount = await _unitOfWork.userGroups.CountByGroupAndUser(userGroup.GroupId, userGroup.UserId);
-                if (existingUserGroupCount > 0)
+                try
                 {
-                    response.Outcome = OutcomeType.Fail;
-                    response.ErrorMessage = "Requested userGroup already exists.";
-                    return response;
+                    var userGroup = _mapper.Map<UserGroup>(userGroupDto);
+
+                    var existingUserGroupCount = await _unitOfWork.UserGroupsRepository.CountByGroupAndUser(userGroup.GroupId, userGroup.UserId);
+                    if (existingUserGroupCount > 0)
+                    {
+                        addMessage(response.ValidationErros, "UserGroup", "Requested userGroup already exists");
+                        return response;
+                    }
+
+                    var newUserGroup = await _unitOfWork.UserGroupsRepository.Create(userGroup);
+
+                    response.Data = _mapper.Map<UserGroupDto>(newUserGroup);
                 }
-
-                var newUserGroup = await _unitOfWork.userGroups.Create(userGroup);
-
-                _unitOfWork.Commit();
-
-                response.Item = _mapper.Map<UserGroupDto>(newUserGroup);
-
-                response.Outcome = OutcomeType.Success;
+                catch (Exception err)
+                {
+                    response.Erros = ToDictionary(err);
+                }
             }
-            catch (Exception)
+            else
             {
-                response.Outcome = OutcomeType.Error;
+                response.ValidationErros = validationResult.ToDictionary();
             }
 
             return response;
         }
 
-        public async Task<IUserGroupServiceResponse> DeleteById(IUserGroupServiceRequest request)
+        public async Task<ApiReponse> DeleteById(long? id)
         {
-            var response = new UserGroupServiceResponse();
+            var response = new ApiReponse();
 
-            if (request.Id is null || !request.Id.HasValue)
+            if (!id.HasValue)
             {
-                response.Outcome = OutcomeType.Fail;
-                response.ErrorMessage = "Id is required.";
+                addMessage(response.ValidationErros, "UserGroup", "Id is required.");
                 return response;
             }
 
             try
             {
-                _unitOfWork.Begin();
-
-                var existing = await _unitOfWork.userGroups.ReadById((long)request.Id);
-                if (existing.Id != request.Id)
+                var existing = await _unitOfWork.UserGroupsRepository.ReadById(id.Value);
+                if (existing?.Id != id)
                 {
-                    response.Outcome = OutcomeType.Fail;
-                    response.ErrorMessage = "Requested userGroup for delete does not exist.";
+                    addMessage(response.ValidationErros, "UserGroup", "Requested userGroup for delete does not exist.");
                     return response;
                 }
 
-                var successful = await _unitOfWork.userGroups.DeleteById((long)request.Id);
+                var successful = await _unitOfWork.UserGroupsRepository.DeleteById(id.Value);
 
-                if (!successful)
+                if (!successful.Value)
                 {
-                    _unitOfWork.Rollback();
-                    response.Outcome = OutcomeType.Fail;
-                    response.ErrorMessage = "UserGroup was not deleted.";
+                    addMessage(response.ValidationErros, "UserGroup", "serGroup was not deleted.");
                     return response;
                 }
-
-                _unitOfWork.Commit();
-
-                response.Outcome = OutcomeType.Success;
             }
-            catch (Exception)
+            catch (Exception err)
             {
-                response.Outcome = OutcomeType.Error;
+                response.Erros = ToDictionary(err);
             }
 
             return response;
         }
 
-        public async Task<IUserGroupServiceResponse> DeleteByGroupId(IUserGroupServiceRequest request)
+        public async Task<ApiReponse> DeleteByGroupId(long? id)
         {
-            var response = new UserGroupServiceResponse();
+            var response = new ApiReponse();
 
-            if (request.Id is null || !request.Id.HasValue)
+            if (!id.HasValue)
             {
-                response.Outcome = OutcomeType.Fail;
-                response.ErrorMessage = "Id is required.";
+                addMessage(response.ValidationErros, "UserGroup", "Id is required.");
                 return response;
             }
 
             try
             {
-                _unitOfWork.Begin();
-
-                var existingCount = await _unitOfWork.userGroups.CountByColumnValue("group_id", (long)request.Id);
+                var existingCount = await _unitOfWork.UserGroupsRepository.CountByColumnValue("group_id", id.Value);
                 if (existingCount < 1)
                 {
-                    response.Outcome = OutcomeType.Fail;
-                    response.ErrorMessage = "Requested userGroup(s) for delete not found.";
+                    addMessage(response.ValidationErros, "UserGroup", "Requested userGroup(s) for delete not found.");
                     return response;
                 }
 
-                var successful = await _unitOfWork.userGroups.DeleteByGroupId((long)request.Id);
+                var successful = await _unitOfWork.UserGroupsRepository.DeleteByGroupId((long)id.Value);
 
-                if (!successful)
+                if (!successful.Value)
                 {
-                    _unitOfWork.Rollback();
-                    response.Outcome = OutcomeType.Fail;
-                    response.ErrorMessage = "UserGroup(s) not deleted.";
+                    addMessage(response.ValidationErros, "UserGroup", "UserGroup(s) not deleted.");
                     return response;
                 }
-
-                _unitOfWork.Commit();
-
-                response.Outcome = OutcomeType.Success;
             }
-            catch (Exception)
+            catch (Exception err)
             {
-                response.Outcome = OutcomeType.Error;
+                response.Erros = ToDictionary(err);
             }
 
             return response;
         }
 
-        public async Task<IUserGroupServiceResponse> DeleteByUserId(IUserGroupServiceRequest request)
+        public async Task<ApiReponse> DeleteByUserId(long? id)
         {
-            var response = new UserGroupServiceResponse();
+            var response = new ApiReponse();
 
-            if (request.Id is null || request.Id.HasValue)
+            if (!id.HasValue)
             {
-                response.Outcome = OutcomeType.Fail;
-                response.ErrorMessage = "Id is required.";
+                addMessage(response.ValidationErros, "UserGroup", "Id is required.");
                 return response;
             }
 
             try
             {
-                _unitOfWork.Begin();
-
-                var existingCount = await _unitOfWork.userGroups.CountByColumnValue("user_id", (long)request.Id);
+                var existingCount = await _unitOfWork.UserGroupsRepository.CountByColumnValue("user_id", id.Value);
                 if (existingCount < 1)
                 {
-                    response.Outcome = OutcomeType.Fail;
-                    response.ErrorMessage = "Requested userGroup(s) for delete not found.";
+                    addMessage(response.ValidationErros, "UserGroup", "Requested userGroup(s) for delete not found.");
                     return response;
                 }
 
-                var successful = await _unitOfWork.userGroups.DeleteByUserId((long)request.Id);
+                var successful = await _unitOfWork.UserGroupsRepository.DeleteByUserId(id.Value);
 
-                if (!successful)
+                if (!successful.Value)
                 {
-                    _unitOfWork.Rollback();
-                    response.Outcome = OutcomeType.Fail;
-                    response.ErrorMessage = "UserGroup(s) not deleted.";
+                    addMessage(response.ValidationErros, "UserGroup", "UserGroup(s) not deleted.");
                     return response;
                 }
-
-                _unitOfWork.Commit();
-
-                response.Outcome = OutcomeType.Success;
             }
-            catch (Exception)
+            catch (Exception err)
             {
-                response.Outcome = OutcomeType.Error;
+                response.Erros = ToDictionary(err);
             }
 
             return response;

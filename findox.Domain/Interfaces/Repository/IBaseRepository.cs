@@ -1,11 +1,11 @@
 using Npgsql;
 
-namespace findox.Domain.Interfaces
+namespace findox.Domain.Interfaces.Repository
 {
-    public interface IBaseRepository
+    public interface IBaseRepository<T>
     {
-        Task<NpgsqlDataReader> RunQuery(NpgsqlCommand command);
-        Task RunNonQuery(NpgsqlCommand comamnd);
-        Task<object?> RunScalar(NpgsqlCommand command);
+        Task<object?> ExecuteEscalar(string procedureName, Object item);
+        Task<IEnumerable<T>> Query(string procedureName, Object? param = null);
+        Task<T> Get(string procedureName, Object param);
     }
 }

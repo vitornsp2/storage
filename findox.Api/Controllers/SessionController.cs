@@ -26,29 +26,14 @@ namespace findox.Api.Controllers
         [AllowAnonymous]
         public async Task<ActionResult> Create([FromBody] UserSessionDto userSessionDto)
         {
-            try
-            {
-                var serviceRequest = new UserServiceRequest(userSessionDto);
-                var serviceResponse = await _userService.CreateSession(serviceRequest);
-                var response = new ControllerResponse();
-                switch (serviceResponse.Outcome)
-                {
-                    case OutcomeType.Error:
-                        response.Error();
-                        return StatusCode(500, response);
-                    case OutcomeType.Fail:
-                        response.Fail(serviceResponse.ErrorMessage);
-                        return BadRequest(response);
-                    case OutcomeType.Success:
-                        response.Success(serviceResponse.Token);
-                        return Ok(response);
-                }
-            }
-            catch (Exception)
-            {
-                return StatusCode(500);
-            }
-            return StatusCode(500);
+            var serviceResponse = await _userService.CreateSession(userSessionDto);
+            
+            if(serviceResponse.hasValidationErros)
+                return BadRequest(serviceResponse);
+            else if(serviceResponse.hasValidationErros)
+                return StatusCode(500, serviceResponse);
+            
+            return Ok(serviceResponse);
         }
     }
 }

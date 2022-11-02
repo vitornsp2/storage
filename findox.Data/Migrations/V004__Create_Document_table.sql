@@ -15,5 +15,6 @@ CREATE TABLE IF NOT EXISTS storage.document_content (
     id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     document_id BIGINT NOT NULL,
     data BYTEA NOT NULL,
+    created_date TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT fk_document_of_content FOREIGN KEY (document_id) REFERENCES storage.documents (id) ON DELETE NO ACTION
 );

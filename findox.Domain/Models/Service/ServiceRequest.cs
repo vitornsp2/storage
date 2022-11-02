@@ -23,43 +23,14 @@ namespace findox.Domain.Models.Service
         public System.Security.Claims.ClaimsPrincipal? PrincipalUser { get; set; }
     }
 
-    public interface IUserServiceRequest : IServiceRequest<IUserDto>
-    {
-        IUserSessionDto? UserSessionDto { get; }
-    }
-
-    public class UserServiceRequest : ServiceRequest<IUserDto>, IUserServiceRequest
-    {
-        public IUserSessionDto? UserSessionDto { get; set; }
-
-        public UserServiceRequest()
-        {
-            Item = new UserDto();
-        }
-
-        public UserServiceRequest(IUserDto user)
-        {
-            Item = user;
-        }
-
-        public UserServiceRequest(IUserSessionDto user)
-        {
-            UserSessionDto = user;
-        }
-
-        public UserServiceRequest(long id)
-        {
-            Id = id;
-        }
-    }
-
-    public interface IDocumentServiceRequest : IServiceRequest<IDocumentDto>
+    
+    public interface IDocumentServiceRequest : IServiceRequest<DocumentDto>
     {
         IFormCollection? Metadata { get; }
         IFormFile? File { get; }
     }
 
-    public class DocumentServiceRequest : ServiceRequest<IDocumentDto>, IDocumentServiceRequest
+    public class DocumentServiceRequest : ServiceRequest<DocumentDto>, IDocumentServiceRequest
     {
         public IFormCollection? Metadata { get; set; }
         public IFormFile? File { get; set; }
@@ -69,7 +40,7 @@ namespace findox.Domain.Models.Service
             Item = new DocumentDto();
         }
 
-        public DocumentServiceRequest(IDocumentDto document)
+        public DocumentServiceRequest(DocumentDto document)
         {
             Item = document;
         }
@@ -84,74 +55,6 @@ namespace findox.Domain.Models.Service
             Metadata = metadata;
             File = file;
             PrincipalUser = principalUser;
-        }
-    }
-
-    public interface IGroupServiceRequest : IServiceRequest<IGroupDto>
-    {
-
-    }
-
-    public class GroupServiceRequest : ServiceRequest<IGroupDto>, IGroupServiceRequest
-    {
-        public GroupServiceRequest()
-        {
-            Item = new GroupDto();
-        }
-        public GroupServiceRequest(IGroupDto group)
-        {
-            Item = group;
-        }
-
-        public GroupServiceRequest(long id)
-        {
-            Id = id;
-        }
-    }
-
-    public interface IUserGroupServiceRequest : IServiceRequest<IUserGroupDto>
-    {
-
-    }
-
-    public class UserGroupServiceRequest : ServiceRequest<IUserGroupDto>, IUserGroupServiceRequest
-    {
-        public UserGroupServiceRequest()
-        {
-            Item = new UserGroupDto();
-        }
-
-        public UserGroupServiceRequest(IUserGroupDto userGroup)
-        {
-            Item = userGroup;
-        }
-
-        public UserGroupServiceRequest(long id)
-        {
-            Id = id;
-        }
-    }
-
-    public interface IPermissionServiceRequest : IServiceRequest<IPermissionDto>
-    {
-
-    }
-
-    public class PermissionServiceRequest : ServiceRequest<IPermissionDto>, IPermissionServiceRequest
-    {
-        public PermissionServiceRequest()
-        {
-            Item = new PermissionDto();
-        }
-
-        public PermissionServiceRequest(IPermissionDto permission)
-        {
-            Item = permission;
-        }
-
-        public PermissionServiceRequest(long id)
-        {
-            Id = id;
         }
     }
 }

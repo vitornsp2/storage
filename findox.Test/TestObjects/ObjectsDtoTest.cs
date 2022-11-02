@@ -8,7 +8,7 @@ namespace findox.Test.TestObjects
 {
     public class ObjectsDtoTest
     {
-        public IUserDto TestUserAdminDto
+        public UserDto TestUserAdminDto
         {
             get
             {
@@ -24,7 +24,7 @@ namespace findox.Test.TestObjects
             }
         }
 
-        public IUserDto TestUserManagerDto
+        public UserDto TestUserManagerDto
         {
             get
             {
@@ -40,7 +40,7 @@ namespace findox.Test.TestObjects
             }
         }
 
-        public IUserDto TestUserRegularDto
+        public UserDto TestUserRegularDto
         {
             get
             {
@@ -56,7 +56,7 @@ namespace findox.Test.TestObjects
             }
         }
 
-        public IUserDto TestUserIncompleteDto
+        public UserDto TestUserIncompleteDto
         {
             get
             {
@@ -67,7 +67,7 @@ namespace findox.Test.TestObjects
             }
         }
 
-        public IUserDto TestUserEmptyStringsDto
+        public UserDto TestUserEmptyStringsDto
         {
             get
             {
@@ -81,7 +81,7 @@ namespace findox.Test.TestObjects
             }
         }
 
-        public IUserDto TestUserNewRegularDto
+        public UserDto TestUserNewRegularDto
         {
             get
             {
@@ -95,11 +95,11 @@ namespace findox.Test.TestObjects
             }
         }
 
-        public List<IUserDto> TestUserDtoList
+        public List<UserDto> TestUserDtoList
         {
             get
             {
-                return new List<IUserDto>()
+                return new List<UserDto>()
                 {
                     TestUserRegularDto,
                     TestUserManagerDto,
@@ -108,7 +108,7 @@ namespace findox.Test.TestObjects
             }
         }
 
-        public IUserSessionDto TestUserSessionAdminDto
+        public UserSessionDto TestUserSessionAdminDto
         {
             get
             {
@@ -116,7 +116,7 @@ namespace findox.Test.TestObjects
             }
         }
 
-        public IUserSessionDto TestUserSessionManagerDto
+        public UserSessionDto TestUserSessionManagerDto
         {
             get
             {
@@ -124,7 +124,7 @@ namespace findox.Test.TestObjects
             }
         }
 
-        public IUserSessionDto TestUserSessionBasicDto
+        public UserSessionDto TestUserSessionBasicDto
         {
             get
             {
@@ -132,7 +132,7 @@ namespace findox.Test.TestObjects
             }
         }
 
-        public IUserGroupDto TestUserGroupDto
+        public UserGroupDto TestUserGroupDto
         {
             get
             {
@@ -158,7 +158,7 @@ namespace findox.Test.TestObjects
             }
         }
 
-        public IGroupDto TestGroupNewDto
+        public GroupDto TestGroupNewDto
         {
             get
             {

@@ -1,8 +1,7 @@
 namespace findox.Domain.Models.Database;
 
-public class Permission
+public class Permission : Entity
 {
-    public long Id { get; set; }
     public long DocumentId { get; set; }
     public long? UserId { get; set; }
     public long? GroupId { get; set; }

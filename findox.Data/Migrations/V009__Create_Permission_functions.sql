@@ -29,7 +29,7 @@ END;
 $$;
 
 CREATE OR REPLACE FUNCTION storage.permissions_get_by_id (
-    id_value BIGINT
+    id BIGINT
 )
     RETURNS SETOF storage.permissions
     LANGUAGE PLPGSQL
@@ -44,7 +44,7 @@ END;
 $$;
 
 CREATE OR REPLACE FUNCTION storage.permissions_get_by_document_id (
-    id_value BIGINT
+    document_id BIGINT
 )
     RETURNS SETOF storage.permissions
     LANGUAGE PLPGSQL
@@ -59,7 +59,7 @@ END;
 $$;
 
 CREATE OR REPLACE FUNCTION storage.permissions_get_by_user_id (
-    id_value BIGINT
+    id_user BIGINT
 )
     RETURNS SETOF storage.permissions
     LANGUAGE PLPGSQL
@@ -79,7 +79,7 @@ END;
 $$;
 
 CREATE OR REPLACE FUNCTION storage.permissions_get_by_group_id (
-    id_value BIGINT
+    id_group BIGINT
 )
     RETURNS SETOF storage.permissions
     LANGUAGE PLPGSQL
@@ -94,7 +94,7 @@ END;
 $$;
 
 CREATE OR REPLACE FUNCTION storage.permissions_delete_by_id (
-    id_value BIGINT
+    id BIGINT
 )
     RETURNS BOOLEAN
     LANGUAGE PLPGSQL
@@ -109,7 +109,7 @@ END;
 $$;
 
 CREATE OR REPLACE FUNCTION storage.permissions_delete_by_document_id (
-    id_value BIGINT
+    id_document BIGINT
 )
     RETURNS BOOLEAN
     LANGUAGE PLPGSQL
@@ -124,7 +124,7 @@ END;
 $$;
 
 CREATE OR REPLACE FUNCTION storage.permissions_delete_by_user_id (
-    id_value BIGINT
+    id_user BIGINT
 )
     RETURNS BOOLEAN
     LANGUAGE PLPGSQL
@@ -139,7 +139,7 @@ END;
 $$;
 
 CREATE OR REPLACE FUNCTION storage.permissions_delete_by_group_id (
-    id_value BIGINT
+    id_group BIGINT
 )
     RETURNS BOOLEAN
     LANGUAGE PLPGSQL

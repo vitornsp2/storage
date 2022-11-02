@@ -1,13 +1,14 @@
 
+using findox.Domain.Models.Dto;
 using findox.Domain.Models.Service;
 
 namespace findox.Domain.Interfaces.Service
 {
     public interface IUserGroupService
     {
-        Task<IUserGroupServiceResponse> Create(IUserGroupServiceRequest request);
-        Task<IUserGroupServiceResponse> DeleteById(IUserGroupServiceRequest request);
-        Task<IUserGroupServiceResponse> DeleteByGroupId(IUserGroupServiceRequest request);
-        Task<IUserGroupServiceResponse> DeleteByUserId(IUserGroupServiceRequest request);
+        Task<ApiReponse> Create(UserGroupDto userGroupDto);
+        Task<ApiReponse> DeleteById(long? id);
+        Task<ApiReponse> DeleteByGroupId(long? id);
+        Task<ApiReponse> DeleteByUserId(long? id);
     }
 }

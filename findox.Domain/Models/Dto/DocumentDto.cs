@@ -1,17 +1,6 @@
 namespace findox.Domain.Models.Dto;
 
-public interface IDocumentDto
-{
-    long? Id { get; }
-    string? Filename { get; }
-    string? ContentType { get; }
-    string? Description { get; }
-    string? Category { get; }
-    DateTime? CreateDate { get; }
-    long? UserId { get; }
-}
-
-public class DocumentDto : IDocumentDto
+public class DocumentDto
 {
     public long? Id { get; set; }
     public string? Filename { get; set; }

@@ -13,20 +13,10 @@ using Microsoft.AspNetCore.Mvc.Testing;
 namespace findox.Test.End2End
 {
 [Collection("Sequential")]
-    public class GroupsE2ETests : IClassFixture<WebApplicationFactory<Program>>
+    public class GroupsE2ETests : BaseTestClass, IClassFixture<WebApplicationFactory<Program>>
     {
-        private StorageDb _db;
-        private readonly WebApplicationFactory<Program> _webApplicationFactory;
-        private ObjectsDtoTest _dto;
-        private JsonSerializerOptions _jsonOpts;
-
-
-        public GroupsE2ETests(WebApplicationFactory<Program> webApplicationFactory)
+        public GroupsE2ETests(WebApplicationFactory<Program> webApplicationFactory) : base(webApplicationFactory)
         {
-            _db = new StorageDb();
-            _webApplicationFactory = webApplicationFactory;
-            _dto = new ObjectsDtoTest();
-            _jsonOpts = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
         }
 
         #region CREATE GROUP
@@ -36,7 +26,7 @@ namespace findox.Test.End2End
         public async Task PostGroupsAsAdminRoleWithNewGroupDtoShouldCreateNewGroupReturn200Ok()
         {
          
-            await _db.RecycleDb();
+           // await _db.RecycleDb();
             var token = _db.AuthenticateAdmin();
             var group = _dto.TestGroupNewDto;
             var json = JsonSerializer.Serialize(group);
@@ -55,10 +45,10 @@ namespace findox.Test.End2End
             Assert.Equal("OK", response.ReasonPhrase.ToString());
             var responseJson = await response.Content.ReadAsStringAsync();
             Assert.NotNull(responseJson);
-            var controllerResponse = JsonSerializer.Deserialize<ControllerResponse>(responseJson, _jsonOpts);
+            var controllerResponse = JsonSerializer.Deserialize<ApiReponse>(responseJson, _jsonOpts);
             Assert.NotNull(controllerResponse);
             Assert.NotNull(controllerResponse.Status);
-            Assert.Equal("success", controllerResponse.Status);
+            Assert.Equal("Success", controllerResponse.Status);
             Assert.NotNull(controllerResponse.Data);
             var dataString = controllerResponse.Data.ToString();
             Assert.NotNull(dataString);

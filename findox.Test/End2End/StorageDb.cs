@@ -1,7 +1,3 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 using findox.Domain.Maps;
 using findox.Domain.Models.Database;
 using findox.Service.Services;

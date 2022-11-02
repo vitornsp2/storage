@@ -1,129 +1,67 @@
+using Dapper;
 using findox.Domain.Interfaces.Repository;
-using findox.Domain.Maps;
 using findox.Domain.Models.Database;
-using Npgsql;
 
 namespace findox.Data.Repositories;
 
-public class GroupRepository : BaseRepository, IGroupRepository
+public class GroupRepository : BaseRepository<Group>, IGroupRepository
 {
-    public GroupRepository(NpgsqlConnection connection) : base(connection)
+    public GroupRepository() : base()
     {
-        _connection = connection;
     }
 
     public async Task<Group> Create(Group group)
     {
-        using (var command = new NpgsqlCommand())
-        {
-            command.CommandText = $"SELECT * FROM storage.groups_create('{group.Name}'";
+        var procedureName = "storage.groups_create";
 
-            if (group.Description is not null) command.CommandText += $", '{group.Description}'";
-            else command.CommandText += $", null";
+        var param = new DynamicParameters();
 
-            command.CommandText += ");";
+        param.Add("name", group.Name);
+        param.Add("description", string.IsNullOrWhiteSpace(group.Description) ? null : group.Description);
 
-            var reader = await RunQuery(command);
-            var newGroup = new Group();
-            while (await reader.ReadAsync())
-            {
-                var map = new DatabaseMap();
-                newGroup = map.Group(reader);
-            }
-            reader.Close();
-            return newGroup;
-        }
+        var id = ((long?)await base.ExecuteEscalar(procedureName, param));
+        group.Id = id.HasValue ? id.Value : 0;
+        return group;
     }
 
-    public async Task<List<Group>> ReadAll()
+    public async Task<IEnumerable<Group>> ReadAll()
     {
-        using (var command = new NpgsqlCommand())
-        {
-            command.CommandText = "SELECT * FROM storage.groups_get_all();";
-
-            var reader = await RunQuery(command);
-            var groups = new List<Group>();
-            while (await reader.ReadAsync())
-            {
-                var map = new DatabaseMap();
-                groups.Add(map.Group(reader));
-            }
-            reader.Close();
-            return groups;
-        }
+        var procedureName = "storage.groups_get_all";
+        var groups = await base.Query(procedureName);
+        return groups;
     }
 
-    public async Task<Group> ReadById(long id)
+    public async Task<Group?> ReadById(long id)
     {
-        using (var command = new NpgsqlCommand())
-        {
-            command.CommandText = $"SELECT * FROM storage.groups_get_by_id({id});";
-
-            var reader = await RunQuery(command);
-            var group = new Group();
-            while (await reader.ReadAsync())
-            {
-                var map = new DatabaseMap();
-                group = map.Group(reader);
-            }
-            reader.Close();
-            return group;
-        }
+        var procedureName = "storage.groups_get_by_id";
+        var param = new { id = id };
+        var groups = await base.Query(procedureName, param);
+        return groups?.FirstOrDefault();
     }
 
-    public async Task<bool> UpdateById(Group group)
+    public async Task<bool?> UpdateById(Group group)
     {
-        using (var command = new NpgsqlCommand())
-        {
-            command.CommandText = $"SELECT * FROM storage.groups_update({group.Id}";
+        var param = new DynamicParameters();
+        var procedureName = "storage.users_update";
 
-            if (group.Name is not null) command.CommandText += $", '{group.Name}'";
-            else command.CommandText += $", null";
+        param.Add("id", group.Id);
+        param.Add("name", string.IsNullOrWhiteSpace(group.Name) ? null : group.Name);
+        param.Add("description", string.IsNullOrWhiteSpace(group.Description) ? null : group.Description);
 
-            if (group.Description is not null) command.CommandText += $", '{group.Description}'";
-            else command.CommandText += $", null";
-
-            command.CommandText += ");";
-
-            var result = await RunScalar(command);
-            var success = false;
-            if (result is not null)
-            {
-                success = bool.Parse($"{result.ToString()}");
-            }
-            return success;
-        }
+        return (bool?)await base.ExecuteEscalar(procedureName, param);
     }
 
-    public async Task<bool> DeleteById(long id)
+    public async Task<bool?> DeleteById(long id)
     {
-        using (var command = new NpgsqlCommand())
-        {
-            command.CommandText = $"SELECT * FROM storage.groups_delete_by_id({id});";
-
-            var result = await RunScalar(command);
-            var success = false;
-            if (result is not null)
-            {
-                success = bool.Parse($"{result.ToString()}");
-            }
-            return success;
-        }
+        var procedureName = "storage.groups_delete_by_id";
+        var param = new { id = id };
+        return (bool?)await base.ExecuteEscalar(procedureName, param);
     }
 
-    public async Task<int> CountByColumnValue(string column, string value)
+    public async Task<int?> CountByColumnValue(string column, string value)
     {
-        using (var command = new NpgsqlCommand())
-        {
-            command.CommandText = $"SELECT * FROM storage.groups_count_by_column_value_text('{column}', '{value}');";
-
-            var result = await RunScalar(command);
-            int count = 0;
-            if (result is not null)
-            {
-                count = int.Parse($"{result.ToString()}");
-            }
-            return count;
-        }
+        var procedureName = "storage.groups_count_by_column_value_text";
+        var param = new { column_name = column, column_value = value };
+        return (int?)await base.ExecuteEscalar(procedureName, param);
     }
 }

@@ -8,10 +8,10 @@ namespace findox.Domain.Interfaces.Service
 {
     public interface IDocumentService
     {
-        Task<IDocumentServiceResponse> Create(IDocumentServiceRequest request);
-        Task<IDocumentServiceResponse> ReadAllPermissioned(IDocumentServiceRequest request);
-        Task<IDocumentServiceResponse> ReadByIdPermissioned(IDocumentServiceRequest request);
-        Task<IDocumentServiceResponse> Update(IDocumentServiceRequest request);
-        Task<IDocumentServiceResponse> DeleteById(IDocumentServiceRequest request);
+        Task<ApiReponse> Create(IDocumentServiceRequest request);
+        Task<ApiReponse> ReadAllPermissioned(IDocumentServiceRequest request);
+        Task<ApiReponse> ReadByIdPermissioned(IDocumentServiceRequest request);
+        Task<ApiReponse> Update(IDocumentServiceRequest request);
+        Task<ApiReponse> DeleteById(IDocumentServiceRequest request);
     }
 }

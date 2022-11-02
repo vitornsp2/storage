@@ -1,312 +1,252 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 using AutoMapper;
-using findox.Domain.Interfaces.DAL;
+using findox.Domain.Interfaces.Repository;
 using findox.Domain.Interfaces.Service;
 using findox.Domain.Models.Database;
 using findox.Domain.Models.Dto;
 using findox.Domain.Models.Service;
+using FluentValidation;
 
 namespace findox.Service.Services
 {
-    public class PermissionService : IPermissionService
+    public class PermissionService : BaseService, IPermissionService
     {
         private readonly IUnitOfWork _unitOfWork;
         private readonly IMapper _mapper;
+        private readonly IValidator<PermissionDto> _validator;
 
-        public PermissionService(IUnitOfWork unitOfWork, IMapper mapper)
+        public PermissionService(IUnitOfWork unitOfWork, IMapper mapper, IValidator<PermissionDto> validator)
         {
             _unitOfWork = unitOfWork;
             _mapper = mapper;
+            _validator = validator;
         }
 
-        public async Task<IPermissionServiceResponse> Create(IPermissionServiceRequest request)
+        public async Task<ApiReponse> Create(PermissionDto permissionDto)
         {
-            var response = new PermissionServiceResponse();
+            var response = new ApiReponse();
 
-            if (request.Item?.DocumentId is null || request.Item.DocumentId == 0)
+            var validationResult = _validator.Validate(permissionDto);
+
+            if (validationResult.IsValid)
             {
-                response.Outcome = OutcomeType.Fail;
-                response.ErrorMessage = "DocumentId is required.";
-                return response;
-            }
-            if (
-                (request.Item?.UserId is null || !request.Item.UserId.HasValue) &&
-                (request.Item?.GroupId is null || !request.Item.GroupId.HasValue)
-            )
-            {
-                response.Outcome = OutcomeType.Fail;
-                response.ErrorMessage = "UserId or GroupId is required.";
-                return response;
-            }
-
-            try
-            {
-                var permission = _mapper.Map<Permission>(request.Item);
-
-                _unitOfWork.Begin();
-
-                var existingDocument = await _unitOfWork.documents.ReadById(permission.DocumentId);
-                if (existingDocument.Id != permission.DocumentId)
+                try
                 {
-                    response.Outcome = OutcomeType.Fail;
-                    response.ErrorMessage = "Requested new permission's DocumentId does not exist.";
-                    return response;
-                }
+                    var permission = _mapper.Map<Permission>(permissionDto);
 
-                if (permission.UserId.HasValue)
-                {
-                    var existingUser = await _unitOfWork.users.ReadById((long)permission.UserId);
-                    if (existingUser.Id != permission.UserId)
+                    var existingDocument = await _unitOfWork.DocumentsRepository.ReadById(permission.DocumentId);
+                    if (existingDocument?.Id != permission.DocumentId)
                     {
-                        response.Outcome = OutcomeType.Fail;
-                        response.ErrorMessage = "Requested new permission's UserId does not exist.";
+                        addMessage(response.ValidationErros, "Permission", "Requested new permission's DocumentId does not exist.");
                         return response;
                     }
-                }
 
-
-                if (permission.GroupId.HasValue)
-                {
-                    var existingGroup = await _unitOfWork.groups.ReadById((long)permission.GroupId);
-                    if (existingGroup.Id != permission.GroupId)
+                    if (permission.UserId.HasValue)
                     {
-                        response.Outcome = OutcomeType.Fail;
-                        response.ErrorMessage = "Requested new permission's GroupId does not exist.";
+                        var existingUser = await _unitOfWork.UsersRepository.ReadById((long)permission.UserId);
+                        if (existingUser?.Id != permission.UserId)
+                        {
+                            addMessage(response.ValidationErros, "Permission", "Requested new permission's UserId does not exist.");
+                            return response;
+                        }
+                    }
+
+                    if (permission.GroupId.HasValue)
+                    {
+                        var existingGroup = await _unitOfWork.GroupsRepository.ReadById((long)permission.GroupId);
+                        if (existingGroup?.Id != permission.GroupId)
+                        {
+                            addMessage(response.ValidationErros, "Permission", "Requested new permission's GroupId does not exist.");
+                            return response;
+                        }
+                    }
+
+                    var existingCount = await _unitOfWork.PermissionsRepository.PermissionMatchCount(permission);
+                    if (existingCount > 0)
+                    {
+                        addMessage(response.ValidationErros, "Permission", "Requested new permission already exists.");
                         return response;
                     }
-                }
 
-                var existingCount = await _unitOfWork.permissions.PermissionMatchCount(permission);
-                if (existingCount > 0)
+                    var newPermission = await _unitOfWork.PermissionsRepository.Create(permission);
+
+                    response.Data = _mapper.Map<PermissionDto>(newPermission);
+
+                }
+                catch (Exception err)
                 {
-                    response.Outcome = OutcomeType.Fail;
-                    response.ErrorMessage = "Requested new permission already exists.";
-                    return response;
+                    response.Erros = ToDictionary(err);
                 }
-
-                var newPermission = await _unitOfWork.permissions.Create(permission);
-
-                _unitOfWork.Commit();
-
-                response.Item = _mapper.Map<PermissionDto>(newPermission);
-
-                response.Outcome = OutcomeType.Success;
             }
-            catch (Exception)
+            else
             {
-                response.Outcome = OutcomeType.Error;
+                response.ValidationErros = validationResult.ToDictionary();
             }
 
             return response;
         }
 
-        public async Task<IPermissionServiceResponse> ReadByDocumentId(IPermissionServiceRequest request)
+        public async Task<ApiReponse> ReadByDocumentId(long? id)
         {
-            var response = new PermissionServiceResponse();
+            var response = new ApiReponse();
 
-            if (!request.Id.HasValue)
+            if (!id.HasValue)
             {
-                response.Outcome = OutcomeType.Fail;
-                response.ErrorMessage = "Id is required.";
+                addMessage(response.ValidationErros, "Permission", "Id is required.");
                 return response;
             }
 
             try
             {
-                var permissions = await _unitOfWork.permissions.ReadByDocumentId((long)request.Id);
+                var permissions = await _unitOfWork.PermissionsRepository.ReadByDocumentId((long)id.Value);
 
                 var permissionDtos = new List<IPermissionDto>();
                 foreach (var permission in permissions) permissionDtos.Add(_mapper.Map<PermissionDto>(permission));
-                response.List = permissionDtos;
+                response.Data = permissionDtos;
 
-                response.Outcome = OutcomeType.Success;
             }
-            catch (Exception)
+            catch (Exception err)
             {
-                response.Outcome = OutcomeType.Error;
-            }
-
-            return response;
-        }
-
-        public async Task<IPermissionServiceResponse> DeleteById(IPermissionServiceRequest request)
-        {
-            var response = new PermissionServiceResponse();
-
-            if (!request.Id.HasValue)
-            {
-                response.Outcome = OutcomeType.Fail;
-                response.ErrorMessage = "Id is required.";
-                return response;
-            }
-
-            try
-            {
-                _unitOfWork.Begin();
-
-                var existing = await _unitOfWork.permissions.ReadById((long)request.Id);
-                if (existing.Id != request.Id)
-                {
-                    response.Outcome = OutcomeType.Fail;
-                    response.ErrorMessage = "Requested permission id for delete does not exist.";
-                    return response;
-                }
-
-                var successful = await _unitOfWork.permissions.DeleteById((long)request.Id);
-
-                if (!successful)
-                {
-                    _unitOfWork.Rollback();
-                    response.Outcome = OutcomeType.Fail;
-                    response.ErrorMessage = "Permission was not deleted.";
-                    return response;
-                }
-
-                _unitOfWork.Commit();
-
-                response.Outcome = OutcomeType.Success;
-            }
-            catch (Exception)
-            {
-                response.Outcome = OutcomeType.Error;
+                response.Erros = ToDictionary(err);
             }
 
             return response;
         }
 
-        public async Task<IPermissionServiceResponse> DeleteByDocumentId(IPermissionServiceRequest request)
+        public async Task<ApiReponse> DeleteById(long? id)
         {
-            var response = new PermissionServiceResponse();
+             var response = new ApiReponse();
 
-            if (!request.Id.HasValue)
+            if (!id.HasValue)
             {
-                response.Outcome = OutcomeType.Fail;
-                response.ErrorMessage = "Id is required.";
+                addMessage(response.ValidationErros, "Permission", "Id is required.");
                 return response;
             }
 
             try
             {
-                _unitOfWork.Begin();
+                var existing = await _unitOfWork.PermissionsRepository.ReadById(id.Value);
+                if (existing?.Id != id)
+                {
+                    addMessage(response.ValidationErros, "Permission", "Requested permission id for delete does not exist.");
+                    return response;
+                }
 
-                var existingCount = await _unitOfWork.permissions.CountByColumnValue("document_id", (long)request.Id);
+                var successful = await _unitOfWork.PermissionsRepository.DeleteById(id.Value);
+
+                if (!successful.Value)
+                {
+                    addMessage(response.ValidationErros, "Permission", "Permission was not deleted.");
+                    return response;
+                }
+            }
+            catch (Exception err)
+            {
+                 response.Erros = ToDictionary(err);
+            }
+
+            return response;
+        }
+
+        public async Task<ApiReponse> DeleteByDocumentId(long? id)
+        {
+            var response = new ApiReponse();
+
+            if (!id.HasValue)
+            {
+                addMessage(response.ValidationErros, "Permission", "Id is required.");
+                return response;
+            }
+
+            try
+            {
+                var existingCount = await _unitOfWork.PermissionsRepository.CountByColumnValue("document_id", id.Value);
                 if (existingCount < 1)
                 {
-                    response.Outcome = OutcomeType.Fail;
-                    response.ErrorMessage = "Requested permissions(s) for delete not found.";
+                    addMessage(response.ValidationErros, "Permission", "Requested permissions(s) for delete not found.");
                     return response;
                 }
 
-                var successful = await _unitOfWork.permissions.DeleteByDocumentId((long)request.Id);
+                var successful = await _unitOfWork.PermissionsRepository.DeleteByDocumentId(id.Value);
 
-                if (!successful)
+                if (!successful.Value)
                 {
-                    _unitOfWork.Rollback();
-                    response.Outcome = OutcomeType.Fail;
-                    response.ErrorMessage = "Permission(s) not deleted.";
+                    addMessage(response.ValidationErros, "Permission", "Permission(s) not deleted.");
                     return response;
                 }
-
-                _unitOfWork.Commit();
-
-                response.Outcome = OutcomeType.Success;
             }
-            catch (Exception)
+            catch (Exception err)
             {
-                response.Outcome = OutcomeType.Error;
+                 response.Erros = ToDictionary(err);
             }
 
             return response;
         }
 
-        public async Task<IPermissionServiceResponse> DeleteByUserId(IPermissionServiceRequest request)
+        public async Task<ApiReponse> DeleteByUserId(long? id)
         {
-            var response = new PermissionServiceResponse();
+            var response = new ApiReponse();
 
-            if (!request.Id.HasValue)
+            if (!id.HasValue)
             {
-                response.Outcome = OutcomeType.Fail;
-                response.ErrorMessage = "Id is required.";
+                addMessage(response.ValidationErros, "Permission", "Id is required.");
                 return response;
             }
 
             try
             {
-                _unitOfWork.Begin();
-
-                var existingCount = await _unitOfWork.permissions.CountByColumnValue("user_id", (long)request.Id);
+                var existingCount = await _unitOfWork.PermissionsRepository.CountByColumnValue("user_id", id.Value);
                 if (existingCount < 1)
                 {
-                    response.Outcome = OutcomeType.Fail;
-                    response.ErrorMessage = "Requested permissions(s) for delete not found.";
+                    addMessage(response.ValidationErros, "Permission", "Id is required.");
                     return response;
                 }
 
-                var successful = await _unitOfWork.permissions.DeleteByUserId((long)request.Id);
+                var successful = await _unitOfWork.PermissionsRepository.DeleteByUserId(id.Value);
 
-                if (!successful)
+                if (!successful.Value)
                 {
-                    _unitOfWork.Rollback();
-                    response.Outcome = OutcomeType.Fail;
-                    response.ErrorMessage = "Permission(s) not deleted.";
+                    addMessage(response.ValidationErros, "Permission", "Permission(s) not deleted.");
                     return response;
                 }
-
-                _unitOfWork.Commit();
-
-                response.Outcome = OutcomeType.Success;
             }
-            catch (Exception)
+            catch (Exception err)
             {
-                response.Outcome = OutcomeType.Error;
+                response.Erros = ToDictionary(err);
             }
 
             return response;
         }
 
-        public async Task<IPermissionServiceResponse> DeleteByGroupId(IPermissionServiceRequest request)
+        public async Task<ApiReponse> DeleteByGroupId(long? id)
         {
-            var response = new PermissionServiceResponse();
+            var response = new ApiReponse();
 
-            if (!request.Id.HasValue)
+            if (!id.HasValue)
             {
-                response.Outcome = OutcomeType.Fail;
-                response.ErrorMessage = "Id is required.";
+                addMessage(response.ValidationErros,"Permission", "Id is required.");
                 return response;
             }
 
             try
             {
-                _unitOfWork.Begin();
-
-                var existingCount = await _unitOfWork.permissions.CountByColumnValue("group_id", (long)request.Id);
+                var existingCount = await _unitOfWork.PermissionsRepository.CountByColumnValue("group_id",id.Value);
                 if (existingCount < 1)
                 {
-                    response.Outcome = OutcomeType.Fail;
-                    response.ErrorMessage = "Requested permissions(s) for delete not found.";
+                    addMessage(response.ValidationErros,"Permission", "Requested permissions(s) for delete not found.");
                     return response;
                 }
 
-                var successful = await _unitOfWork.permissions.DeleteByGroupId((long)request.Id);
+                var successful = await _unitOfWork.PermissionsRepository.DeleteByGroupId(id.Value);
 
-                if (!successful)
+                if (!successful.Value)
                 {
-                    _unitOfWork.Rollback();
-                    response.Outcome = OutcomeType.Fail;
-                    response.ErrorMessage = "Permission(s) not deleted.";
+                    addMessage(response.ValidationErros,"Permission", "Permission(s) not deleted.");
                     return response;
                 }
-
-                _unitOfWork.Commit();
-
-                response.Outcome = OutcomeType.Success;
             }
-            catch (Exception)
+            catch (Exception err)
             {
-                response.Outcome = OutcomeType.Error;
+                response.Erros = ToDictionary(err);
             }
 
             return response;

@@ -36,8 +36,8 @@ namespace findox.Test.controller
             RefreshMocks();
             var userSessionDto = _dto.TestUserSessionBasicDto;
             var token = "faketokenstring";
-            var response = new UserServiceResponse() { Outcome = OutcomeType.Success, Token = token };
-            _userService.Setup(u => u.CreateSession(It.IsAny<UserServiceRequest>())).ReturnsAsync(response);
+            var response = new ApiReponse() { Data = token };
+            _userService.Setup(u => u.CreateSession(It.IsAny<UserSessionDto>())).ReturnsAsync(response);
             var sessionController = new SessionController(_userService.Object);
 
             var actionResult = await sessionController.Create((UserSessionDto)userSessionDto);
@@ -49,12 +49,12 @@ namespace findox.Test.controller
             Assert.NotNull(okObjectResult);
             Assert.Equal(200, okObjectResult.StatusCode);
             Assert.NotNull(okObjectResult.Value);
-            Assert.IsType<ControllerResponse>(okObjectResult.Value);
+            Assert.IsType<ApiReponse>(okObjectResult.Value);
 
-            var controllerResponse = (ControllerResponse)okObjectResult.Value;
+            var controllerResponse = (ApiReponse)okObjectResult?.Value;
             Assert.NotNull(controllerResponse);
-            Assert.Equal("success", controllerResponse.Status);
-            Assert.Equal(token, controllerResponse.Data);
+            Assert.Equal("Success", controllerResponse?.Status);
+            Assert.Equal(token, controllerResponse?.Data);
         }
 
         [Fact]
@@ -62,8 +62,10 @@ namespace findox.Test.controller
         {
             RefreshMocks();
             var userSessionDto = _dto.TestUserSessionBasicDto;
-            var response = new UserServiceResponse() { Outcome = OutcomeType.Fail, ErrorMessage = "No match found for Email and Password." };
-            _userService.Setup(u => u.CreateSession(It.IsAny<UserServiceRequest>())).ReturnsAsync(response);
+            var validationErros = new Dictionary<string, string[]>();
+            validationErros.Add("User", new List<string> { "No match found for Email and Password."}.ToArray());
+            var response = new ApiReponse() { ValidationErros = validationErros };
+            _userService.Setup(u => u.CreateSession(It.IsAny<UserSessionDto>())).ReturnsAsync(response);
             var sessionController = new SessionController(_userService.Object);
 
             var actionResult = await sessionController.Create((UserSessionDto)userSessionDto);
@@ -75,38 +77,11 @@ namespace findox.Test.controller
             Assert.NotNull(badRequestObjectResult);
             Assert.Equal(400, badRequestObjectResult.StatusCode);
             Assert.NotNull(badRequestObjectResult.Value);
-            Assert.IsType<ControllerResponse>(badRequestObjectResult.Value);
+            Assert.IsType<ApiReponse>(badRequestObjectResult.Value);
 
-            var controllerResponse = (ControllerResponse)badRequestObjectResult.Value;
+            var controllerResponse = (ApiReponse)badRequestObjectResult.Value;
             Assert.NotNull(controllerResponse);
-            Assert.Equal("fail", controllerResponse.Status);
-            Assert.Equal("No match found for Email and Password.", controllerResponse.Message);
-        }
-
-        [Fact]
-        public async Task CreateSessionWithServiceErrorShouldReturnObjectResult()
-        {
-            RefreshMocks();
-            var userSessionDto = _dto.TestUserSessionBasicDto;
-            var response = new UserServiceResponse() { Outcome = OutcomeType.Error };
-            _userService.Setup(u => u.CreateSession(It.IsAny<UserServiceRequest>())).ReturnsAsync(response);
-            var sessionController = new SessionController(_userService.Object);
-
-            var actionResult = await sessionController.Create((UserSessionDto)userSessionDto);
-
-            Assert.NotNull(actionResult);
-            Assert.IsType<ObjectResult>(actionResult);
-
-            var objectResult = (ObjectResult)actionResult;
-            Assert.NotNull(objectResult);
-            Assert.Equal(500, objectResult.StatusCode);
-            Assert.NotNull(objectResult.Value);
-            Assert.IsType<ControllerResponse>(objectResult.Value);
-
-            var controllerResponse = (ControllerResponse)objectResult.Value;
-            Assert.NotNull(controllerResponse);
-            Assert.Equal("error", controllerResponse.Status);
-            Assert.Equal("An error occurred while processing your request.", controllerResponse.Message);
+            Assert.Equal("Error", controllerResponse.Status);
         }
 
         #endregion CREATE

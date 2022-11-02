@@ -1,8 +1,7 @@
 namespace findox.Domain.Models.Database;
 
-public class UserGroup
+public class UserGroup : Entity
 {
-    public long Id { get; set; }
     public long GroupId { get; set; }
     public long UserId { get; set; }
     public Group Group { get; set; } = null!;

@@ -33,60 +33,30 @@ namespace findox.Api.Controllers
         [Authorize(Roles = "admin")]
         public async Task<ActionResult> Create([FromBody] GroupDto groupDto)
         {
-            try
-            {
-                var serviceRequest = new GroupServiceRequest(groupDto);
-                var serviceResponse = await _groupService.Create(serviceRequest);
-                var response = new ControllerResponse();
-                switch (serviceResponse.Outcome)
-                {
-                    case OutcomeType.Error:
-                        response.Error();
-                        return StatusCode(500, response);
-                    case OutcomeType.Fail:
-                        response.Fail(serviceResponse.ErrorMessage);
-                        return BadRequest(response);
-                    case OutcomeType.Success:
-                        response.Success(serviceResponse.Item);
-                        return Ok(response);
-                }
-            }
-            catch (Exception)
-            {
-                return StatusCode(500);
-            }
-            return StatusCode(500);
+            var serviceResponse = await _groupService.Create(groupDto);
+            
+            if(serviceResponse.hasValidationErros)
+                return BadRequest(serviceResponse);
+            else if(serviceResponse.hasValidationErros)
+                return StatusCode(500, serviceResponse);
+            
+            return Ok(serviceResponse);
         }
 
         [HttpPost("/v1/groups/{id}/permissions")]
         [Authorize(Roles = "admin")]
         public async Task<ActionResult> CreateGroupPermission([FromRoute] long id, [FromBody] PermissionDto permissionDto)
         {
-            try
-            {
-                if (id != permissionDto.GroupId) return BadRequest($"Id mismatch: Route {id} ≠ Body {permissionDto.GroupId}");
+            if (id != permissionDto.GroupId) return BadRequest($"Id mismatch: Route {id} ≠ Body {permissionDto.GroupId}");
 
-                var serviceRequest = new PermissionServiceRequest(permissionDto);
-                var serviceResponse = await _permissionService.Create(serviceRequest);
-                var response = new ControllerResponse();
-                switch (serviceResponse.Outcome)
-                {
-                    case OutcomeType.Error:
-                        response.Error();
-                        return StatusCode(500, response);
-                    case OutcomeType.Fail:
-                        response.Fail(serviceResponse.ErrorMessage);
-                        return BadRequest(response);
-                    case OutcomeType.Success:
-                        response.Success(serviceResponse.Item);
-                        return Ok(response);
-                }
-            }
-            catch (Exception)
-            {
-                return StatusCode(500);
-            }
-            return StatusCode(500);
+            var serviceResponse = await _permissionService.Create(permissionDto);
+            
+            if(serviceResponse.hasValidationErros)
+                return BadRequest(serviceResponse);
+            else if(serviceResponse.hasValidationErros)
+                return StatusCode(500, serviceResponse);
+            
+            return Ok(serviceResponse);
         }
 
         #endregion CREATE
@@ -97,59 +67,28 @@ namespace findox.Api.Controllers
         [Authorize(Roles = "admin")]
         public async Task<ActionResult> ReadAll()
         {
-            try
-            {
-                var serviceRequest = new GroupServiceRequest();
-                var serviceResponse = await _groupService.ReadAll(serviceRequest);
-                var response = new ControllerResponse();
-                switch (serviceResponse.Outcome)
-                {
-                    case OutcomeType.Error:
-                        response.Error();
-                        return StatusCode(500, response);
-                    case OutcomeType.Fail:
-                        response.Fail(serviceResponse.ErrorMessage);
-                        return BadRequest(response);
-                    case OutcomeType.Success:
-                        response.Success(serviceResponse.List);
-                        return Ok(response);
-                }
-            }
-            catch (Exception)
-            {
-                return StatusCode(500);
-            }
-
-            return StatusCode(500);
+            var serviceResponse = await _groupService.ReadAll();
+            
+            if(serviceResponse.hasValidationErros)
+                return BadRequest(serviceResponse);
+            else if(serviceResponse.hasValidationErros)
+                return StatusCode(500, serviceResponse);
+            
+            return Ok(serviceResponse);
         }
 
         [HttpGet("{id}")]
         [Authorize(Roles = "admin")]
         public async Task<ActionResult> ReadById(long id)
         {
-            try
-            {
-                var serviceRequest = new GroupServiceRequest(id);
-                var serviceResponse = await _groupService.ReadById(serviceRequest);
-                var response = new ControllerResponse();
-                switch (serviceResponse.Outcome)
-                {
-                    case OutcomeType.Error:
-                        response.Error();
-                        return StatusCode(500, response);
-                    case OutcomeType.Fail:
-                        response.Fail(serviceResponse.ErrorMessage);
-                        return BadRequest(response);
-                    case OutcomeType.Success:
-                        response.Success(serviceResponse.AllDto);
-                        return Ok(response);
-                }
-            }
-            catch (Exception)
-            {
-                return StatusCode(500);
-            }
-            return StatusCode(500);
+            var serviceResponse = await _groupService.ReadById(id);
+            
+            if(serviceResponse.hasValidationErros)
+                return BadRequest(serviceResponse);
+            else if(serviceResponse.hasValidationErros)
+                return StatusCode(500, serviceResponse);
+            
+            return Ok(serviceResponse);
         }
 
         #endregion READ
@@ -160,31 +99,16 @@ namespace findox.Api.Controllers
         [Authorize(Roles = "admin")]
         public async Task<ActionResult> Update([FromRoute] long id, [FromBody] GroupDto groupDto)
         {
-            try
-            {
-                if (id != groupDto.Id) return BadRequest($"Id mismatch: Route {id} ≠ Body {groupDto.Id}");
+            if (id != groupDto.Id) return BadRequest($"Id mismatch: Route {id} ≠ Body {groupDto.Id}");
 
-                var serviceRequest = new GroupServiceRequest(groupDto);
-                var serviceResponse = await _groupService.Update(serviceRequest);
-                var response = new ControllerResponse();
-                switch (serviceResponse.Outcome)
-                {
-                    case OutcomeType.Error:
-                        response.Error();
-                        return StatusCode(500, response);
-                    case OutcomeType.Fail:
-                        response.Fail(serviceResponse.ErrorMessage);
-                        return BadRequest(response);
-                    case OutcomeType.Success:
-                        response.Success("Group updated.");
-                        return Ok(response);
-                }
-            }
-            catch (Exception)
-            {
-                return StatusCode(500);
-            }
-            return StatusCode(500);
+            var serviceResponse = await _groupService.Update(groupDto);
+            
+            if(serviceResponse.hasValidationErros)
+                return BadRequest(serviceResponse);
+            else if(serviceResponse.hasValidationErros)
+                return StatusCode(500, serviceResponse);
+            
+            return Ok(serviceResponse);
         }
 
         #endregion UPDATE
@@ -195,116 +119,56 @@ namespace findox.Api.Controllers
         [Authorize(Roles = "admin")]
         public async Task<ActionResult> DeleteById(long id)
         {
-            try
-            {
-                var serviceRequest = new GroupServiceRequest(id);
-                var serviceResponse = await _groupService.DeleteById(serviceRequest);
-                var response = new ControllerResponse();
-                switch (serviceResponse.Outcome)
-                {
-                    case OutcomeType.Error:
-                        response.Error();
-                        return StatusCode(500, response);
-                    case OutcomeType.Fail:
-                        response.Fail(serviceResponse.ErrorMessage);
-                        return BadRequest(response);
-                    case OutcomeType.Success:
-                        response.Success("Group deleted.");
-                        return Ok(response);
-                }
-            }
-            catch (Exception)
-            {
-                return StatusCode(500);
-            }
-            return StatusCode(500);
+            var serviceResponse = await _groupService.DeleteById(id);
+            
+            if(serviceResponse.hasValidationErros)
+                return BadRequest(serviceResponse);
+            else if(serviceResponse.hasValidationErros)
+                return StatusCode(500, serviceResponse);
+            
+            return Ok(serviceResponse);
         }
 
         [HttpDelete("/v1/groups/{id}/userGroups")]
         [Authorize(Roles = "admin")]
         public async Task<ActionResult> DeleteUserGroupsByGroupId(long id)
         {
-            try
-            {
-                var serviceRequest = new UserGroupServiceRequest(id);
-                var serviceResponse = await _userGroupService.DeleteByGroupId(serviceRequest);
-                var response = new ControllerResponse();
-                switch (serviceResponse.Outcome)
-                {
-                    case OutcomeType.Error:
-                        response.Error();
-                        return StatusCode(500, response);
-                    case OutcomeType.Fail:
-                        response.Fail(serviceResponse.ErrorMessage);
-                        return BadRequest(response);
-                    case OutcomeType.Success:
-                        response.Success("UserGroups deleted.");
-                        return Ok(response);
-                }
-            }
-            catch (Exception)
-            {
-                return StatusCode(500);
-            }
-            return StatusCode(500);
+            var serviceResponse = await _userGroupService.DeleteByGroupId(id);
+            
+            if(serviceResponse.hasValidationErros)
+                return BadRequest(serviceResponse);
+            else if(serviceResponse.hasValidationErros)
+                return StatusCode(500, serviceResponse);
+            
+            return Ok(serviceResponse);
         }
 
         [HttpDelete("/v1/groups/{id}/permissions")]
         [Authorize(Roles = "admin")]
         public async Task<ActionResult> DeletePermissionsByGroupId(long id)
         {
-            try
-            {
-                var serviceRequest = new PermissionServiceRequest(id);
-                var serviceResponse = await _permissionService.DeleteByGroupId(serviceRequest);
-                var response = new ControllerResponse();
-                switch (serviceResponse.Outcome)
-                {
-                    case OutcomeType.Error:
-                        response.Error();
-                        return StatusCode(500, response);
-                    case OutcomeType.Fail:
-                        response.Fail(serviceResponse.ErrorMessage);
-                        return BadRequest(response);
-                    case OutcomeType.Success:
-                        response.Success("Permissions deleted.");
-                        return Ok(response);
-                }
-            }
-            catch (Exception)
-            {
-                return StatusCode(500);
-            }
-            return StatusCode(500);
+            var serviceResponse = await _permissionService.DeleteByGroupId(id);
+            
+            if(serviceResponse.hasValidationErros)
+                return BadRequest(serviceResponse);
+            else if(serviceResponse.hasValidationErros)
+                return StatusCode(500, serviceResponse);
+            
+            return Ok(serviceResponse);
         }
 
         [HttpDelete("/v1/groups/{gid}/permissions/{pid}")]
         [Authorize(Roles = "admin")]
         public async Task<ActionResult> DeletePermissionByPermissionId(long gid, long pid)
         {
-            try
-            {
-                var serviceRequest = new PermissionServiceRequest(pid);
-                var serviceResponse = await _permissionService.DeleteById(serviceRequest);
-                var response = new ControllerResponse();
-                switch (serviceResponse.Outcome)
-                {
-                    case OutcomeType.Error:
-                        response.Error();
-                        return StatusCode(500, response);
-                    case OutcomeType.Fail:
-                        response.Fail(serviceResponse.ErrorMessage);
-                        return BadRequest(response);
-                    case OutcomeType.Success:
-                        response.Success("Permission deleted.");
-                        return Ok(response);
-                }
-            }
-            catch (Exception)
-            {
-                return StatusCode(500);
-            }
-            return StatusCode(500);
+            var serviceResponse = await _permissionService.DeleteById(pid);
+            
+            if(serviceResponse.hasValidationErros)
+                return BadRequest(serviceResponse);
+            else if(serviceResponse.hasValidationErros)
+                return StatusCode(500, serviceResponse);
+            
+            return Ok(serviceResponse);
         }
 
         #endregion DELETE

@@ -1,37 +1,39 @@
 using Npgsql;
-using findox.Domain.Interfaces;
+using findox.Domain.Interfaces.Repository;
+using Dapper;
+using System.Data;
+using findox.Domain.Models.Database;
 
 namespace findox.Data.Repositories
 {
-    public abstract class BaseRepository : IBaseRepository
+    public abstract class BaseRepository<T> : IBaseRepository<T> where T : Entity
     {
-        protected NpgsqlConnection _connection;
 
-        public BaseRepository(NpgsqlConnection connection)
+        private string _connectionString = $"{Environment.GetEnvironmentVariable("STORAGE_CONN_STRING")}";
+
+        public BaseRepository()
         {
-            _connection = connection;
         }
 
-        public async Task<NpgsqlDataReader> RunQuery(NpgsqlCommand command)
+        public async Task<T> Get(string procedureName, Object param)
         {
-            command.Connection = _connection;
-            await command.PrepareAsync();
-            var reader = await command.ExecuteReaderAsync();
-            return reader;
+            using NpgsqlConnection conn = new NpgsqlConnection(_connectionString);
+            conn.Open();
+            return await conn.QueryFirstOrDefaultAsync<T>(sql: procedureName, param, commandType: CommandType.StoredProcedure);
         }
 
-        public async Task RunNonQuery(NpgsqlCommand command)
+        public async Task<object?> ExecuteEscalar(string procedureName, Object param)
         {
-            command.Connection = _connection;
-            await command.PrepareAsync();
-            await command.ExecuteNonQueryAsync();
+            using NpgsqlConnection conn = new NpgsqlConnection(_connectionString);
+            conn.Open();
+            return await conn.ExecuteScalarAsync<object?>(sql: procedureName, param, commandType: CommandType.StoredProcedure);
         }
 
-        public async Task<object?> RunScalar(NpgsqlCommand command)
+        public async Task<IEnumerable<T>> Query(string procedureName, Object? param = null)
         {
-            command.Connection = _connection;
-            object? result = await command.ExecuteScalarAsync();
-            return result;
+            using NpgsqlConnection conn = new NpgsqlConnection(_connectionString);
+            conn.Open();
+            return await conn.QueryAsync<T>(sql: procedureName, param, commandType: CommandType.StoredProcedure);
         }
     }
 }
