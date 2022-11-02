@@ -32,7 +32,7 @@ namespace findox.Api.Controllers
 
             if (serviceResponse.hasValidationErros)
                 return BadRequest(serviceResponse);
-            else if (serviceResponse.hasValidationErros)
+            else if (serviceResponse.hasErros)
                 return StatusCode(500, serviceResponse);
 
             return Ok(serviceResponse);
@@ -48,7 +48,7 @@ namespace findox.Api.Controllers
 
             if (serviceResponse.hasValidationErros)
                 return BadRequest(serviceResponse);
-            else if (serviceResponse.hasValidationErros)
+            else if (serviceResponse.hasErros)
                 return StatusCode(500, serviceResponse);
 
             return Ok(serviceResponse);
@@ -64,7 +64,7 @@ namespace findox.Api.Controllers
 
             if (serviceResponse.hasValidationErros)
                 return BadRequest(serviceResponse);
-            else if (serviceResponse.hasValidationErros)
+            else if (serviceResponse.hasErros)
                 return StatusCode(500, serviceResponse);
 
             return Ok(serviceResponse);
@@ -82,7 +82,7 @@ namespace findox.Api.Controllers
 
             if (serviceResponse.hasValidationErros)
                 return BadRequest(serviceResponse);
-            else if (serviceResponse.hasValidationErros)
+            else if (serviceResponse.hasErros)
                 return StatusCode(500, serviceResponse);
 
             return Ok(serviceResponse);
@@ -96,7 +96,7 @@ namespace findox.Api.Controllers
 
             if (serviceResponse.hasValidationErros)
                 return BadRequest(serviceResponse);
-            else if (serviceResponse.hasValidationErros)
+            else if (serviceResponse.hasErros)
                 return StatusCode(500, serviceResponse);
 
             return Ok(serviceResponse);
@@ -116,7 +116,7 @@ namespace findox.Api.Controllers
 
             if (serviceResponse.hasValidationErros)
                 return BadRequest(serviceResponse);
-            else if (serviceResponse.hasValidationErros)
+            else if (serviceResponse.hasErros)
                 return StatusCode(500, serviceResponse);
 
             return Ok(serviceResponse);
@@ -132,7 +132,7 @@ namespace findox.Api.Controllers
 
             if (serviceResponse.hasValidationErros)
                 return BadRequest(serviceResponse);
-            else if (serviceResponse.hasValidationErros)
+            else if (serviceResponse.hasErros)
                 return StatusCode(500, serviceResponse);
 
             return Ok(serviceResponse);
@@ -150,7 +150,7 @@ namespace findox.Api.Controllers
 
             if (serviceResponse.hasValidationErros)
                 return BadRequest(serviceResponse);
-            else if (serviceResponse.hasValidationErros)
+            else if (serviceResponse.hasErros)
                 return StatusCode(500, serviceResponse);
 
             return Ok(serviceResponse);
@@ -164,7 +164,7 @@ namespace findox.Api.Controllers
 
             if (serviceResponse.hasValidationErros)
                 return BadRequest(serviceResponse);
-            else if (serviceResponse.hasValidationErros)
+            else if (serviceResponse.hasErros)
                 return StatusCode(500, serviceResponse);
 
             return Ok(serviceResponse);
@@ -178,7 +178,7 @@ namespace findox.Api.Controllers
 
             if (serviceResponse.hasValidationErros)
                 return BadRequest(serviceResponse);
-            else if (serviceResponse.hasValidationErros)
+            else if (serviceResponse.hasErros)
                 return StatusCode(500, serviceResponse);
 
             return Ok(serviceResponse);
@@ -193,7 +193,7 @@ namespace findox.Api.Controllers
 
             if (serviceResponse.hasValidationErros)
                 return BadRequest(serviceResponse);
-            else if (serviceResponse.hasValidationErros)
+            else if (serviceResponse.hasErros)
                 return StatusCode(500, serviceResponse);
 
             return Ok(serviceResponse);
@@ -207,7 +207,7 @@ namespace findox.Api.Controllers
 
             if (serviceResponse.hasValidationErros)
                 return BadRequest(serviceResponse);
-            else if (serviceResponse.hasValidationErros)
+            else if (serviceResponse.hasErros)
                 return StatusCode(500, serviceResponse);
 
             return Ok(serviceResponse);
